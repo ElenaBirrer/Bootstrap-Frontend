@@ -1,12 +1,22 @@
 // =====================
-// app.js – Komplettdatei
+// app.js – Komplett (swisstopo WMTS + BFE-GeoJSON + Report)
 // =====================
 
-// --- Konstanten (Zürich als Default) ---
-const LAT = 47.3769;
+// --- Konstanten ---
+const LAT = 47.3769; // Zürich (Wetter & Karte)
 const LON = 8.5417;
 
-// --- Helper: Blumen-Loader (HTML) ---
+const WINT_LAT = 47.4988; // Winterthur (Default für Distanz)
+const WINT_LON = 8.7237;
+
+// Wetter bleibt Open-Meteo
+// (Button "Wetter laden" nutzt das in loadWeather)
+
+// Offizielles BFE GeoJSON (deutsche Texte, CH-weit, Locations aggregiert)
+const BFE_GEOJSON_DE =
+  "https://data.geo.admin.ch/ch.bfe.ladestellen-elektromobilitaet/data/ch.bfe.ladestellen-elektromobilitaet_de.json";
+
+// --- Helper: Loader + Toast ---
 function flowerLoader() {
   return `
     <div class="loader" aria-live="polite" aria-busy="true">
@@ -14,8 +24,6 @@ function flowerLoader() {
       <span class="ms-2 text-secondary">Lade…</span>
     </div>`;
 }
-
-// --- Helper: Bootstrap-Toast ---
 function showToast(message, type = "danger") {
   const icon = type === "danger" ? "exclamation-triangle" : "info-circle";
   const toast = $(`
@@ -29,29 +37,20 @@ function showToast(message, type = "danger") {
   $(".toast-container").append(toast);
   new bootstrap.Toast(toast[0], { delay: 3500 }).show();
 }
-
-// --- Zahlenformat de-CH ---
 const fmt = new Intl.NumberFormat("de-CH", { maximumFractionDigits: 2 });
 
 // ======================
-// Event-Bindings (jQuery)
+// Event-Bindings
 // ======================
 $(function () {
   $("#btnCat").on("click", loadCat);
   $("#btnBtc").on("click", loadBitcoin);
   $("#btnWeather").on("click", loadWeather);
 
-  // Ladestationen:
-  $("#btnCharging").on("click", () => fetchAndRenderStations(LAT, LON)); // Standard: Zürich
-  $("#btnChargingZip").on("click", loadChargingStationsByZip);           // Suche per PLZ
-
-  // Enter-Taste im PLZ-Feld triggert Suche
-  $("#zipInput").on("keydown", (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      $("#btnChargingZip").click();
-    }
-  });
+  // Ladestationen (Card hat zwei Buttons: Zürich-Umkreis via WINT_LAT/LON, sowie PLZ-Suche):
+  $("#btnCharging").on("click", () => loadChargingStationsNearest(WINT_LAT, WINT_LON));
+  $("#btnChargingZip").on("click", loadChargingStationsByZip);
+  $("#zipInput").on("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("#btnChargingZip").click(); } });
 
   $("#btnMap").on("click", showMap);
 });
@@ -62,7 +61,6 @@ $(function () {
 async function loadCat() {
   const $area = $("#catResult");
   $area.html(flowerLoader());
-
   try {
     const res = await fetch("https://api.thecatapi.com/v1/images/search");
     if (!res.ok) throw new Error("TheCatAPI nicht erreichbar.");
@@ -83,7 +81,6 @@ async function loadCat() {
 async function loadBitcoin() {
   const $area = $("#btcResult");
   $area.html(flowerLoader());
-
   try {
     const url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd,chf";
     const res = await fetch(url);
@@ -92,7 +89,6 @@ async function loadBitcoin() {
     const usd = data?.bitcoin?.usd;
     const chf = data?.bitcoin?.chf;
     if (usd == null || chf == null) throw new Error("Preisangaben fehlen.");
-
     $area.html(`
       <ul class="list-group">
         <li class="list-group-item d-flex justify-content-between align-items-center">
@@ -111,7 +107,7 @@ async function loadBitcoin() {
 }
 
 // ==========================================
-// 3) Wetter (Open-Meteo, heute, Zürich-Coords)
+// 3) Wetter (Open-Meteo, heute, Zürich)
 // ==========================================
 async function loadWeather() {
   const $area = $("#weatherResult");
@@ -123,12 +119,10 @@ async function loadWeather() {
     const res = await fetch(url);
     if (!res.ok) throw new Error("Open-Meteo nicht erreichbar.");
     const data = await res.json();
-
     const d = data?.daily;
     const tmax = d?.temperature_2m_max?.[0];
     const tmin = d?.temperature_2m_min?.[0];
     const prec = d?.precipitation_sum?.[0];
-
     if ([tmax, tmin, prec].some((v) => v == null)) throw new Error("Wetterdaten unvollständig.");
 
     $area.html(`
@@ -161,137 +155,177 @@ async function loadWeather() {
 }
 
 // ==========================================================
-// 4) EV-Ladestationen (OpenChargeMap) + PLZ-Suche per Nominatim
-//    HINWEIS: Seite über http://localhost:... öffnen (Live Server)
+// 4) EV-Ladestationen (BFE GeoJSON, robust) + PLZ-Suche
 // ==========================================================
+let BFE_CACHE = null;
 
-// Öffentliche Helferfunktion (falls anderswo genutzt)
-async function loadChargingStations() {
-  // Standard: Zürich-Umkreis
-  fetchAndRenderStations(LAT, LON);
+// LV95 (CH1903+) -> WGS84 (Dezimalgrad)
+function lv95ToWgs(E, N) {
+  const e = (E - 2600000) / 1e6, n = (N - 1200000) / 1e6;
+  let lon = 2.6779094 + 4.728982 * e + 0.791484 * e * n + 0.1306 * e * n * n - 0.0436 * e ** 3;
+  let lat = 16.9023892 + 3.238272 * n - 0.270978 * e ** 2 - 0.002528 * n ** 2 - 0.0447 * e ** 2 * n - 0.014 * n ** 3;
+  return { lat: lat * (100 / 36), lon: lon * (100 / 36) };
+}
+// Haversine-Distanz (km)
+function haversineKm(lat1, lon1, lat2, lon2){
+  const toRad = d => d*Math.PI/180, R=6371;
+  const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+// Zahl-Parser (auch "8,72")
+const toNum = v => (typeof v === "number" ? v : Number(String(v).replace(/\s+/g,"").replace(",", ".")));
+
+// GeoJSON laden (einmalig cachen)
+async function loadBfeGeo() {
+  if (BFE_CACHE) return BFE_CACHE;
+  const res = await fetch(BFE_GEOJSON_DE, { headers: { Accept: "application/json" } });
+  if (!res.ok) {
+    const t = await res.text().catch(()=> "");
+    throw new Error(`BFE-GeoJSON HTTP ${res.status} – ${t.slice(0,120) || "Antwort fehlerhaft"}`);
+  }
+  const data = await res.json();
+  const feats = Array.isArray(data.features) ? data.features : [];
+  BFE_CACHE = feats;
+  return feats;
 }
 
-// Gemeinsame Funktion: OpenChargeMap abfragen und im selben DOM-Bereich rendern
-async function fetchAndRenderStations(lat, lon) {
+// Koordinaten robust extrahieren
+function extractStationInfo(f){
+  const p = f.properties || {};
+  const g = f.geometry || {};
+  let lon, lat;
+
+  // 1) GeoJSON-Point/MultiPoint
+  if (g && Array.isArray(g.coordinates)) {
+    const flat = g.coordinates.flat(3);
+    if (flat.length >= 2) {
+      const x = toNum(flat[0]), y = toNum(flat[1]);
+      if (x > 1000 || y > 1000) { const {lat:lt, lon:ln} = lv95ToWgs(x,y); lon=ln; lat=lt; }
+      else { lon=x; lat=y; }
+    }
+  }
+
+  // 2) Fallback: LV95-Felder in properties
+  if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+    const E = toNum(p.E || p.E_EPSG_2056 || p.x_lv95 || p.x);
+    const N = toNum(p.N || p.N_EPSG_2056 || p.y_lv95 || p.y);
+    if (Number.isFinite(E) && Number.isFinite(N) && (E>1000||N>1000)) {
+      const {lat:lt, lon:ln} = lv95ToWgs(E,N); lon=ln; lat=lt;
+    }
+  }
+
+  const title = p.name || p.title || p.titel || p.standortbezeichnung || "Ladestation";
+  const address = p.address || p.adresse || [p.strasse, p.plz, p.ort].filter(Boolean).join(" ").trim();
+  return {lat, lon, title, address};
+}
+
+// Nächste 5 Stationen zu (lat,lon) – rendert in #chargingResult
+async function loadChargingStationsNearest(lat, lon){
   const $area = $("#chargingResult");
   $area.html(flowerLoader());
+  try{
+    const feats = await loadBfeGeo();
+    const stations = feats.map(extractStationInfo)
+      .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lon) && s.title && s.title.trim().length>0);
 
-  // OCM: "key" dient der Identifikation (hier generisch, kein Secret)
-  const params = new URLSearchParams({
-    output: "json",
-    countrycode: "CH",
-    latitude: lat,
-    longitude: lon,
-    distance: 10,
-    distanceunit: "KM",
-    maxresults: 5,
-    compact: true,
-    verbose: false,
-    key: "OCM-API-KEY"
-  });
+    stations.forEach(s => s._km = haversineKm(lat, lon, s.lat, s.lon));
+    const top5 = stations.sort((a,b)=>a._km-b._km).slice(0,5);
 
-  const url = `https://api.openchargemap.io/v3/poi/?${params.toString()}`;
-
-  try {
-    const res = await fetch(url, { headers: { Accept: "application/json" } });
-
-    if (!res.ok) {
-      const t = await res.text().catch(() => "");
-      throw new Error(`HTTP ${res.status} – ${t.slice(0, 120) || "Antwort fehlerhaft"}`);
-    }
-
-    const data = await res.json();
-    if (!Array.isArray(data) || data.length === 0) {
-      $area.html(`<div class="alert alert-warning">Keine Stationen im 10-km-Umkreis gefunden.</div>`);
+    if(top5.length === 0){
+      $area.html(`<div class="alert alert-warning">Keine Stationen gefunden.</div>`);
       return;
     }
 
-    const items = data
-      .map((p, i) => {
-        const info = p.AddressInfo || {};
-        const title = info.Title || "Unbenannte Station";
-        const addr = [info.AddressLine1, info.Town].filter(Boolean).join(", ");
-        const dist =
-          typeof info.Distance === "number" ? `${fmt.format(info.Distance)} km` : "";
-        return `
-          <li class="list-group-item">
-            <div class="d-flex justify-content-between">
-              <div>
-                <div class="fw-semibold">${i + 1}. ${title}</div>
-                <div class="text-secondary small">${addr}</div>
-              </div>
-              <div class="text-nowrap small">${dist}</div>
-            </div>
-          </li>`;
-      })
-      .join("");
-
-    $area.html(`<ul class="list-group">${items}</ul>`);
-  } catch (err) {
-    console.error("OpenChargeMap Fehler:", err);
+    $area.html(`<ul class="list-group">${
+      top5.map((s,i)=>`
+        <li class="list-group-item d-flex justify-content-between">
+          <div>
+            <div class="fw-semibold">${i+1}. ${s.title}</div>
+            <div class="text-secondary small">${s.address || ""}</div>
+          </div>
+          <div class="text-nowrap small">${fmt.format(s._km)} km</div>
+        </li>`).join("")
+    }</ul>`);
+  }catch(err){
+    console.error("BFE Ladestationen Fehler:", err);
     $area.html(`<div class="alert alert-danger">Fehler beim Laden der Ladestationen.</div>`);
-    showToast(`Ladestationen: ${err.message || "Unbekannter Fehler"}`);
+    showToast(err.message || "Unbekannter Fehler beim BFE-Dataset.");
   }
 }
 
-// NEU: PLZ -> Koordinaten (Nominatim), dann OCM abrufen
-async function loadChargingStationsByZip() {
+// PLZ -> Geocoding (Nominatim), dann gleiche Logik
+async function loadChargingStationsByZip(){
   const $area = $("#chargingResult");
   const raw = $("#zipInput").val()?.trim() || "";
-
-  // Basis-Validierung CH-PLZ (4 Ziffern)
-  if (!/^\d{4}$/.test(raw)) {
-    showToast("Bitte eine gültige 4-stellige PLZ eingeben (CH).", "info");
-    $("#zipInput").focus();
-    return;
-  }
-
+  if(!/^\d{4}$/.test(raw)){ showToast("Bitte eine gültige 4-stellige PLZ (CH) eingeben.", "info"); $("#zipInput").focus(); return; }
   $area.html(flowerLoader());
-
-  try {
-    // Geocoding mit OpenStreetMap Nominatim (auf CH beschränkt)
-    const geoUrl = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=ch&q=${encodeURIComponent(
-      raw
-    )}&limit=1`;
-    const geoRes = await fetch(geoUrl, { headers: { Accept: "application/json" } });
-    if (!geoRes.ok) throw new Error("Geocoding (Nominatim) fehlgeschlagen.");
-    const matches = await geoRes.json();
-
-    if (!Array.isArray(matches) || matches.length === 0) {
-      $area.html(`<div class="alert alert-warning">PLZ nicht gefunden.</div>`);
-      return;
-    }
-
-    const lat = parseFloat(matches[0].lat);
-    const lon = parseFloat(matches[0].lon);
-    if (Number.isNaN(lat) || Number.isNaN(lon))
-      throw new Error("Ungültige Koordinaten für diese PLZ.");
-
-    // Danach wie gewohnt OCM abfragen & im selben Bereich rendern
-    await fetchAndRenderStations(lat, lon);
-  } catch (err) {
+  try{
+    const geoUrl = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=ch&q=${encodeURIComponent(raw)}&limit=1`;
+    const r = await fetch(geoUrl, { headers: { Accept: "application/json" }});
+    if(!r.ok) throw new Error("Geocoding fehlgeschlagen.");
+    const matches = await r.json();
+    if(!Array.isArray(matches) || matches.length===0){ $area.html(`<div class="alert alert-warning">PLZ nicht gefunden.</div>`); return; }
+    const lat = parseFloat(matches[0].lat), lon = parseFloat(matches[0].lon);
+    if(!Number.isFinite(lat)||!Number.isFinite(lon)) throw new Error("Ungültige Koordinaten zu dieser PLZ.");
+    await loadChargingStationsNearest(lat, lon);
+  }catch(err){
     console.error("PLZ-Suche Fehler:", err);
     $area.html(`<div class="alert alert-danger">Fehler bei der PLZ-Suche.</div>`);
     showToast(err.message || "Unbekannter Fehler bei der PLZ-Suche.");
   }
 }
 
-// ==========================
-// 5) Karte (Leaflet, Zürich)
-// ==========================
+// ---- Extra: Vollständiger Report (Konsole + optional CSV) ----
+async function reportAllGermanStationsFromCH(){
+  // Lädt GeoJSON, berechnet Distanz ab Winterthur, loggt komplette Liste
+  const feats = await loadBfeGeo();
+  const stations = feats.map(extractStationInfo)
+    .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lon) && s.title && s.title.trim().length>0);
+
+  stations.forEach(s => s.kmFromWinterthur = haversineKm(WINT_LAT, WINT_LON, s.lat, s.lon));
+  stations.sort((a,b)=>a.kmFromWinterthur - b.kmFromWinterthur);
+
+  console.table(stations.map(s=>({
+    Name: s.title,
+    Adresse: s.address || "",
+    Distanz_km_ab_Winterthur: Number(s.kmFromWinterthur.toFixed(2))
+  })));
+
+  // Optional: CSV-Download
+  const header = "Name;Adresse;Distanz_km_ab_Winterthur\n";
+  const rows = stations.map(s => `${(s.title||"").replaceAll(";"," ")};${(s.address||"").replaceAll(";"," ")};${s.kmFromWinterthur.toFixed(2)}`).join("\n");
+  const blob = new Blob([header + rows], {type:"text/csv;charset=utf-8"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "ev_stationen_winterthur.csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast(`CSV "ev_stationen_winterthur.csv" erzeugt.`, "info");
+}
+
+// =====================================
+// 5) Karte mit api3.geo.admin.ch (WMTS)
+// =====================================
 let mapInstance = null;
 
 function showMap() {
-  if (!mapInstance) {
-    mapInstance = L.map("map").setView([LAT, LON], 13);
+  if (mapInstance) { mapInstance.setView([LAT, LON], 13); return; }
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  mapInstance = L.map("map").setView([LAT, LON], 13);
+
+  // swisstopo WMTS – Beispiel-Layer: ch.swisstopo.pixelkarte-farbe (Web Mercator 3857)
+  // Tile-URL-Schema laut API3: https://wmts.geo.admin.ch/1.0.0/{layer}/default/current/3857/{z}/{x}/{y}.png
+  const swisstopo = L.tileLayer(
+    "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-farbe/default/current/3857/{z}/{x}/{y}.png",
+    {
+      attribution:
+        '© <a href="https://www.swisstopo.admin.ch" target="_blank" rel="noopener">swisstopo</a> | © OpenStreetMap-Mitwirkende',
       maxZoom: 19,
-      attribution: "&copy; OpenStreetMap-Mitwirkende"
-    }).addTo(mapInstance);
+      tileSize: 256
+    }
+  ).addTo(mapInstance);
 
-    L.marker([LAT, LON]).addTo(mapInstance).bindPopup("Zürich").openPopup();
-  } else {
-    mapInstance.setView([LAT, LON], 13);
-  }
+  // Marker Zürich
+  L.marker([LAT, LON]).addTo(mapInstance).bindPopup("Zürich").openPopup();
 }

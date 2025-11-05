@@ -1,22 +1,19 @@
 // =====================
-// app.js – Komplett (swisstopo WMTS + BFE-GeoJSON + Report)
+// app.js – Komplettdatei
 // =====================
 
 // --- Konstanten ---
-const LAT = 47.3769; // Zürich (Wetter & Karte)
+const LAT = 47.3769; // Zürich (für Wetter & Karte)
 const LON = 8.5417;
 
-const WINT_LAT = 47.4988; // Winterthur (Default für Distanz)
+const WINT_LAT = 47.4988; // Winterthur (Default für Ladestationen)
 const WINT_LON = 8.7237;
 
-// Wetter bleibt Open-Meteo
-// (Button "Wetter laden" nutzt das in loadWeather)
-
-// Offizielles BFE GeoJSON (deutsche Texte, CH-weit, Locations aggregiert)
+// Offizielles BFE-GeoJSON mit deutschen Texten
 const BFE_GEOJSON_DE =
   "https://data.geo.admin.ch/ch.bfe.ladestellen-elektromobilitaet/data/ch.bfe.ladestellen-elektromobilitaet_de.json";
 
-// --- Helper: Loader + Toast ---
+// --- Helper UI ---
 function flowerLoader() {
   return `
     <div class="loader" aria-live="polite" aria-busy="true">
@@ -47,10 +44,15 @@ $(function () {
   $("#btnBtc").on("click", loadBitcoin);
   $("#btnWeather").on("click", loadWeather);
 
-  // Ladestationen (Card hat zwei Buttons: Zürich-Umkreis via WINT_LAT/LON, sowie PLZ-Suche):
+  // Ladestationen (Default Winterthur + PLZ-Suche)
   $("#btnCharging").on("click", () => loadChargingStationsNearest(WINT_LAT, WINT_LON));
   $("#btnChargingZip").on("click", loadChargingStationsByZip);
-  $("#zipInput").on("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("#btnChargingZip").click(); } });
+  $("#zipInput").on("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      $("#btnChargingZip").click();
+    }
+  });
 
   $("#btnMap").on("click", showMap);
 });
@@ -82,7 +84,8 @@ async function loadBitcoin() {
   const $area = $("#btcResult");
   $area.html(flowerLoader());
   try {
-    const url = "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd,chf";
+    const url =
+      "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd,chf";
     const res = await fetch(url);
     if (!res.ok) throw new Error("CoinGecko nicht erreichbar.");
     const data = await res.json();
@@ -101,7 +104,9 @@ async function loadBitcoin() {
     `);
   } catch (err) {
     console.error("BTC Fehler:", err);
-    $area.html(`<div class="alert alert-danger">Fehler beim Laden des Bitcoin-Preises.</div>`);
+    $area.html(
+      `<div class="alert alert-danger">Fehler beim Laden des Bitcoin-Preises.</div>`
+    );
     showToast(err.message || "Unbekannter Fehler bei CoinGecko.");
   }
 }
@@ -123,7 +128,8 @@ async function loadWeather() {
     const tmax = d?.temperature_2m_max?.[0];
     const tmin = d?.temperature_2m_min?.[0];
     const prec = d?.precipitation_sum?.[0];
-    if ([tmax, tmin, prec].some((v) => v == null)) throw new Error("Wetterdaten unvollständig.");
+    if ([tmax, tmin, prec].some((v) => v == null))
+      throw new Error("Wetterdaten unvollständig.");
 
     $area.html(`
       <div class="row g-2">
@@ -155,34 +161,50 @@ async function loadWeather() {
 }
 
 // ==========================================================
-// 4) EV-Ladestationen (BFE GeoJSON, robust) + PLZ-Suche
+// 4) EV-Ladestationen (BFE GeoJSON), Adresse + PLZ-Suche
 // ==========================================================
 let BFE_CACHE = null;
 
 // LV95 (CH1903+) -> WGS84 (Dezimalgrad)
 function lv95ToWgs(E, N) {
-  const e = (E - 2600000) / 1e6, n = (N - 1200000) / 1e6;
-  let lon = 2.6779094 + 4.728982 * e + 0.791484 * e * n + 0.1306 * e * n * n - 0.0436 * e ** 3;
-  let lat = 16.9023892 + 3.238272 * n - 0.270978 * e ** 2 - 0.002528 * n ** 2 - 0.0447 * e ** 2 * n - 0.014 * n ** 3;
+  const e = (E - 2600000) / 1e6,
+    n = (N - 1200000) / 1e6;
+  let lon =
+    2.6779094 + 4.728982 * e + 0.791484 * e * n + 0.1306 * e * n * n - 0.0436 * e ** 3;
+  let lat =
+    16.9023892 +
+    3.238272 * n -
+    0.270978 * e ** 2 -
+    0.002528 * n ** 2 -
+    0.0447 * e ** 2 * n -
+    0.014 * n ** 3;
   return { lat: lat * (100 / 36), lon: lon * (100 / 36) };
 }
 // Haversine-Distanz (km)
-function haversineKm(lat1, lon1, lat2, lon2){
-  const toRad = d => d*Math.PI/180, R=6371;
-  const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
-  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const toRad = (d) => (d * Math.PI) / 180,
+    R = 6371;
+  const dLat = toRad(lat2 - lat1),
+    dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
-// Zahl-Parser (auch "8,72")
-const toNum = v => (typeof v === "number" ? v : Number(String(v).replace(/\s+/g,"").replace(",", ".")));
+const toNum = (v) =>
+  typeof v === "number"
+    ? v
+    : Number(String(v ?? "").replace(/\s+/g, "").replace(",", "."));
 
-// GeoJSON laden (einmalig cachen)
+// GeoJSON laden (einmalig)
 async function loadBfeGeo() {
   if (BFE_CACHE) return BFE_CACHE;
   const res = await fetch(BFE_GEOJSON_DE, { headers: { Accept: "application/json" } });
   if (!res.ok) {
-    const t = await res.text().catch(()=> "");
-    throw new Error(`BFE-GeoJSON HTTP ${res.status} – ${t.slice(0,120) || "Antwort fehlerhaft"}`);
+    const t = await res.text().catch(() => "");
+    throw new Error(
+      `BFE-GeoJSON HTTP ${res.status} – ${t.slice(0, 120) || "Antwort fehlerhaft"}`
+    );
   }
   const data = await res.json();
   const feats = Array.isArray(data.features) ? data.features : [];
@@ -190,64 +212,98 @@ async function loadBfeGeo() {
   return feats;
 }
 
-// Koordinaten robust extrahieren
-function extractStationInfo(f){
+// Koordinaten & Basisinfo (inkl. Adresse) robust extrahieren
+function extractStationInfo(f) {
   const p = f.properties || {};
   const g = f.geometry || {};
   let lon, lat;
 
-  // 1) GeoJSON-Point/MultiPoint
+  // --- Koordinaten aus GeoJSON ---
   if (g && Array.isArray(g.coordinates)) {
     const flat = g.coordinates.flat(3);
     if (flat.length >= 2) {
-      const x = toNum(flat[0]), y = toNum(flat[1]);
-      if (x > 1000 || y > 1000) { const {lat:lt, lon:ln} = lv95ToWgs(x,y); lon=ln; lat=lt; }
-      else { lon=x; lat=y; }
+      const x = toNum(flat[0]),
+        y = toNum(flat[1]);
+      if (x > 1000 || y > 1000) {
+        const { lat: lt, lon: ln } = lv95ToWgs(x, y);
+        lon = ln;
+        lat = lt;
+      } else {
+        lon = x;
+        lat = y;
+      }
     }
   }
-
-  // 2) Fallback: LV95-Felder in properties
+  // --- Fallback: LV95 in Properties ---
   if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
     const E = toNum(p.E || p.E_EPSG_2056 || p.x_lv95 || p.x);
     const N = toNum(p.N || p.N_EPSG_2056 || p.y_lv95 || p.y);
-    if (Number.isFinite(E) && Number.isFinite(N) && (E>1000||N>1000)) {
-      const {lat:lt, lon:ln} = lv95ToWgs(E,N); lon=ln; lat=lt;
+    if (Number.isFinite(E) && Number.isFinite(N) && (E > 1000 || N > 1000)) {
+      const { lat: lt, lon: ln } = lv95ToWgs(E, N);
+      lon = ln;
+      lat = lt;
     }
   }
 
-  const title = p.name || p.title || p.titel || p.standortbezeichnung || "Ladestation";
-  const address = p.address || p.adresse || [p.strasse, p.plz, p.ort].filter(Boolean).join(" ").trim();
-  return {lat, lon, title, address};
+  // --- Name (DE) ---
+  const title =
+    p.name || p.title || p.titel || p.standortbezeichnung || "Ladestation";
+
+  // --- Adresse (robust zusammenbauen) ---
+  const street = p.address || p.adresse || p.strasse || p.street || p.STRASSE || "";
+  const houseno = p.hausnr || p.hausnummer || p.housenumber || "";
+  const zip = p.plz || p.PLZ || p.postcode || p.postleitzahl || "";
+  const city = p.ort || p.ORT || p.gemeinde || p.locality || p.town || "";
+  const extras = p.zusatz || p.adresszusatz || "";
+
+  const streetLine = [street, houseno].filter(Boolean).join(" ").trim();
+  const cityLine = [zip, city].filter(Boolean).join(" ").trim();
+  const address = [streetLine, extras, cityLine]
+    .filter((s) => String(s).trim().length > 0)
+    .join(", ");
+
+  return { lat, lon, title, address };
 }
 
-// Nächste 5 Stationen zu (lat,lon) – rendert in #chargingResult
-async function loadChargingStationsNearest(lat, lon){
+// Top-5 Stationen zu (lat,lon) anzeigen
+async function loadChargingStationsNearest(lat, lon) {
   const $area = $("#chargingResult");
   $area.html(flowerLoader());
-  try{
+  try {
     const feats = await loadBfeGeo();
-    const stations = feats.map(extractStationInfo)
-      .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lon) && s.title && s.title.trim().length>0);
+    const stations = feats
+      .map(extractStationInfo)
+      .filter(
+        (s) =>
+          Number.isFinite(s.lat) &&
+          Number.isFinite(s.lon) &&
+          s.title &&
+          s.title.trim().length > 0
+      );
 
-    stations.forEach(s => s._km = haversineKm(lat, lon, s.lat, s.lon));
-    const top5 = stations.sort((a,b)=>a._km-b._km).slice(0,5);
+    stations.forEach((s) => (s._km = haversineKm(lat, lon, s.lat, s.lon)));
+    const top5 = stations.sort((a, b) => a._km - b._km).slice(0, 5);
 
-    if(top5.length === 0){
+    if (top5.length === 0) {
       $area.html(`<div class="alert alert-warning">Keine Stationen gefunden.</div>`);
       return;
     }
 
-    $area.html(`<ul class="list-group">${
-      top5.map((s,i)=>`
+    $area.html(
+      `<ul class="list-group">${top5
+        .map(
+          (s, i) => `
         <li class="list-group-item d-flex justify-content-between">
           <div>
-            <div class="fw-semibold">${i+1}. ${s.title}</div>
-            <div class="text-secondary small">${s.address || ""}</div>
+            <div class="fw-semibold">${i + 1}. ${s.title}</div>
+            ${s.address ? `<div class="text-secondary small">${s.address}</div>` : ""}
           </div>
           <div class="text-nowrap small">${fmt.format(s._km)} km</div>
-        </li>`).join("")
-    }</ul>`);
-  }catch(err){
+        </li>`
+        )
+        .join("")}</ul>`
+    );
+  } catch (err) {
     console.error("BFE Ladestationen Fehler:", err);
     $area.html(`<div class="alert alert-danger">Fehler beim Laden der Ladestationen.</div>`);
     showToast(err.message || "Unbekannter Fehler beim BFE-Dataset.");
@@ -255,53 +311,36 @@ async function loadChargingStationsNearest(lat, lon){
 }
 
 // PLZ -> Geocoding (Nominatim), dann gleiche Logik
-async function loadChargingStationsByZip(){
+async function loadChargingStationsByZip() {
   const $area = $("#chargingResult");
   const raw = $("#zipInput").val()?.trim() || "";
-  if(!/^\d{4}$/.test(raw)){ showToast("Bitte eine gültige 4-stellige PLZ (CH) eingeben.", "info"); $("#zipInput").focus(); return; }
+  if (!/^\d{4}$/.test(raw)) {
+    showToast("Bitte eine gültige 4-stellige PLZ (CH) eingeben.", "info");
+    $("#zipInput").focus();
+    return;
+  }
   $area.html(flowerLoader());
-  try{
-    const geoUrl = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=ch&q=${encodeURIComponent(raw)}&limit=1`;
-    const r = await fetch(geoUrl, { headers: { Accept: "application/json" }});
-    if(!r.ok) throw new Error("Geocoding fehlgeschlagen.");
+  try {
+    const geoUrl = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=ch&q=${encodeURIComponent(
+      raw
+    )}&limit=1`;
+    const r = await fetch(geoUrl, { headers: { Accept: "application/json" } });
+    if (!r.ok) throw new Error("Geocoding fehlgeschlagen.");
     const matches = await r.json();
-    if(!Array.isArray(matches) || matches.length===0){ $area.html(`<div class="alert alert-warning">PLZ nicht gefunden.</div>`); return; }
-    const lat = parseFloat(matches[0].lat), lon = parseFloat(matches[0].lon);
-    if(!Number.isFinite(lat)||!Number.isFinite(lon)) throw new Error("Ungültige Koordinaten zu dieser PLZ.");
+    if (!Array.isArray(matches) || matches.length === 0) {
+      $area.html(`<div class="alert alert-warning">PLZ nicht gefunden.</div>`);
+      return;
+    }
+    const lat = parseFloat(matches[0].lat),
+      lon = parseFloat(matches[0].lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon))
+      throw new Error("Ungültige Koordinaten zu dieser PLZ.");
     await loadChargingStationsNearest(lat, lon);
-  }catch(err){
+  } catch (err) {
     console.error("PLZ-Suche Fehler:", err);
     $area.html(`<div class="alert alert-danger">Fehler bei der PLZ-Suche.</div>`);
     showToast(err.message || "Unbekannter Fehler bei der PLZ-Suche.");
   }
-}
-
-// ---- Extra: Vollständiger Report (Konsole + optional CSV) ----
-async function reportAllGermanStationsFromCH(){
-  // Lädt GeoJSON, berechnet Distanz ab Winterthur, loggt komplette Liste
-  const feats = await loadBfeGeo();
-  const stations = feats.map(extractStationInfo)
-    .filter(s => Number.isFinite(s.lat) && Number.isFinite(s.lon) && s.title && s.title.trim().length>0);
-
-  stations.forEach(s => s.kmFromWinterthur = haversineKm(WINT_LAT, WINT_LON, s.lat, s.lon));
-  stations.sort((a,b)=>a.kmFromWinterthur - b.kmFromWinterthur);
-
-  console.table(stations.map(s=>({
-    Name: s.title,
-    Adresse: s.address || "",
-    Distanz_km_ab_Winterthur: Number(s.kmFromWinterthur.toFixed(2))
-  })));
-
-  // Optional: CSV-Download
-  const header = "Name;Adresse;Distanz_km_ab_Winterthur\n";
-  const rows = stations.map(s => `${(s.title||"").replaceAll(";"," ")};${(s.address||"").replaceAll(";"," ")};${s.kmFromWinterthur.toFixed(2)}`).join("\n");
-  const blob = new Blob([header + rows], {type:"text/csv;charset=utf-8"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "ev_stationen_winterthur.csv";
-  a.click();
-  URL.revokeObjectURL(a.href);
-  showToast(`CSV "ev_stationen_winterthur.csv" erzeugt.`, "info");
 }
 
 // =====================================
@@ -310,17 +349,21 @@ async function reportAllGermanStationsFromCH(){
 let mapInstance = null;
 
 function showMap() {
-  if (mapInstance) { mapInstance.setView([LAT, LON], 13); return; }
+  if (mapInstance) {
+    mapInstance.setView([LAT, LON], 13);
+    return;
+  }
 
-  mapInstance = L.map("map").setView([LAT, LON], 13);
+  // Leaflet Map
+  mapInstance = L.map("map", { zoomControl: true }).setView([LAT, LON], 13);
 
-  // swisstopo WMTS – Beispiel-Layer: ch.swisstopo.pixelkarte-farbe (Web Mercator 3857)
-  // Tile-URL-Schema laut API3: https://wmts.geo.admin.ch/1.0.0/{layer}/default/current/3857/{z}/{x}/{y}.png
-  const swisstopo = L.tileLayer(
+  // WMTS-Rasterkachel von api3.geo.admin.ch (swisstopo)
+  // Doku: https://api3.geo.admin.ch/  |  WMTS-Endpunkt: https://wmts.geo.admin.ch/1.0.0/{layer}/default/current/3857/{z}/{x}/{y}.png
+  L.tileLayer(
     "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-farbe/default/current/3857/{z}/{x}/{y}.png",
     {
       attribution:
-        '© <a href="https://www.swisstopo.admin.ch" target="_blank" rel="noopener">swisstopo</a> | © OpenStreetMap-Mitwirkende',
+        '© <a href="https://www.swisstopo.admin.ch" target="_blank" rel="noopener">swisstopo</a>',
       maxZoom: 19,
       tileSize: 256
     }
@@ -328,4 +371,7 @@ function showMap() {
 
   // Marker Zürich
   L.marker([LAT, LON]).addTo(mapInstance).bindPopup("Zürich").openPopup();
+
+  // Maßstab
+  L.control.scale({ imperial: false }).addTo(mapInstance);
 }

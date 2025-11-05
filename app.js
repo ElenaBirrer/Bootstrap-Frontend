@@ -9,7 +9,7 @@ const LON = 8.5417;
 const WINT_LAT = 47.4988; // Winterthur (Default für Ladestationen)
 const WINT_LON = 8.7237;
 
-// Offizielles BFE-GeoJSON mit deutschen Texten
+// Offizielles BFE-GeoJSON (deutsche Texte)
 const BFE_GEOJSON_DE =
   "https://data.geo.admin.ch/ch.bfe.ladestellen-elektromobilitaet/data/ch.bfe.ladestellen-elektromobilitaet_de.json";
 
@@ -45,12 +45,24 @@ $(function () {
   $("#btnWeather").on("click", loadWeather);
 
   // Ladestationen (Default Winterthur + PLZ-Suche)
-  $("#btnCharging").on("click", () => loadChargingStationsNearest(WINT_LAT, WINT_LON));
+  $("#btnCharging").on("click", async () => {
+    await loadChargingStationsNearest(WINT_LAT, WINT_LON);
+  });
   $("#btnChargingZip").on("click", loadChargingStationsByZip);
   $("#zipInput").on("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
       $("#btnChargingZip").click();
+    }
+  });
+
+  // Klick in der Liste -> Karte zentrieren
+  $("#chargingResult").on("click", ".js-station", function () {
+    const lat = parseFloat(this.dataset.lat);
+    const lon = parseFloat(this.dataset.lon);
+    const title = this.dataset.title || "Ladestation";
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      focusMapOn(lon, lat, title, true);
     }
   });
 
@@ -162,6 +174,7 @@ async function loadWeather() {
 
 // ==========================================================
 // 4) EV-Ladestationen (BFE GeoJSON), Adresse + PLZ-Suche
+//     + Verknüpfung mit Karte (Marker + Click-Fokus)
 // ==========================================================
 let BFE_CACHE = null;
 
@@ -265,7 +278,16 @@ function extractStationInfo(f) {
   return { lat, lon, title, address };
 }
 
-// Top-5 Stationen zu (lat,lon) anzeigen
+// ---- Marker-Verwaltung für die Karte ----
+let stationMarkers = []; // aktuelle Marker der Liste
+
+function clearStationMarkers() {
+  if (!mapInstance) return;
+  for (const m of stationMarkers) m.remove();
+  stationMarkers = [];
+}
+
+// Top-5 Stationen zu (lat,lon) anzeigen + Marker setzen
 async function loadChargingStationsNearest(lat, lon) {
   const $area = $("#chargingResult");
   $area.html(flowerLoader());
@@ -286,27 +308,52 @@ async function loadChargingStationsNearest(lat, lon) {
 
     if (top5.length === 0) {
       $area.html(`<div class="alert alert-warning">Keine Stationen gefunden.</div>`);
+      clearStationMarkers();
       return;
     }
 
-    $area.html(
-      `<ul class="list-group">${top5
-        .map(
-          (s, i) => `
-        <li class="list-group-item d-flex justify-content-between">
-          <div>
-            <div class="fw-semibold">${i + 1}. ${s.title}</div>
-            ${s.address ? `<div class="text-secondary small">${s.address}</div>` : ""}
+    // --- Liste mit data-Attributen (für Klick → focusMapOn) ---
+    $area.html(`<ul class="list-group">${
+      top5.map((s,i)=>`
+        <li class="list-group-item js-station" role="button"
+            data-lat="${s.lat}" data-lon="${s.lon}"
+            data-title="${(s.title || '').replace(/"/g,'&quot;')}">
+          <div class="d-flex justify-content-between">
+            <div>
+              <div class="fw-semibold">${i + 1}. ${s.title}</div>
+              ${s.address ? `<div class="text-secondary small">${s.address}</div>` : ""}
+            </div>
+            <div class="text-nowrap small">${fmt.format(s._km)} km</div>
           </div>
-          <div class="text-nowrap small">${fmt.format(s._km)} km</div>
-        </li>`
-        )
-        .join("")}</ul>`
-    );
+        </li>`).join("")
+    }</ul>`);
+
+    // --- Marker auf der Karte setzen & auf die Top-5 zoomen ---
+    ensureMap();           // stellt sicher, dass die Karte initialisiert ist
+    clearStationMarkers();
+
+    const bounds = new maplibregl.LngLatBounds();
+    top5.forEach((s, idx) => {
+      const marker = new maplibregl.Marker({ color: "#ff3c9b" })
+        .setLngLat([s.lon, s.lat])
+        .setPopup(new maplibregl.Popup({ offset: 12 }).setText(`${idx+1}. ${s.title}`))
+        .addTo(mapInstance);
+      stationMarkers.push(marker);
+      bounds.extend([s.lon, s.lat]);
+    });
+
+    // Auch den Suchmittelpunkt berücksichtigen
+    bounds.extend([lon, lat]);
+
+    // sanftes Zoomen auf die Bounds
+    if (!bounds.isEmpty()) {
+      mapInstance.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 600 });
+    }
   } catch (err) {
     console.error("BFE Ladestationen Fehler:", err);
     $area.html(`<div class="alert alert-danger">Fehler beim Laden der Ladestationen.</div>`);
     showToast(err.message || "Unbekannter Fehler beim BFE-Dataset.");
+    clearStationMarkers();
   }
 }
 
@@ -329,49 +376,68 @@ async function loadChargingStationsByZip() {
     const matches = await r.json();
     if (!Array.isArray(matches) || matches.length === 0) {
       $area.html(`<div class="alert alert-warning">PLZ nicht gefunden.</div>`);
+      clearStationMarkers();
       return;
     }
     const lat = parseFloat(matches[0].lat),
       lon = parseFloat(matches[0].lon);
     if (!Number.isFinite(lat) || !Number.isFinite(lon))
       throw new Error("Ungültige Koordinaten zu dieser PLZ.");
+
     await loadChargingStationsNearest(lat, lon);
   } catch (err) {
     console.error("PLZ-Suche Fehler:", err);
     $area.html(`<div class="alert alert-danger">Fehler bei der PLZ-Suche.</div>`);
     showToast(err.message || "Unbekannter Fehler bei der PLZ-Suche.");
+    clearStationMarkers();
   }
 }
 
 // =====================================
-// 5) Karte mit api3.geo.admin.ch (WMTS)
+// 5) Karte mit api3.geo.admin.ch (loader.js / MapLibre)
 // =====================================
 let mapInstance = null;
+let centerMarker = null;
 
+// Karte initialisieren (einmalig)
 function showMap() {
-  if (mapInstance) {
-    mapInstance.setView([LAT, LON], 13);
-    return;
-  }
+  ensureMap();
+  // optional sofort zentrieren
+  mapInstance.jumpTo({ center: [LON, LAT], zoom: 13 });
+  if (centerMarker) centerMarker.remove();
+  centerMarker = new maplibregl.Marker().setLngLat([LON, LAT]).addTo(mapInstance);
+}
 
-  // Leaflet Map
-  mapInstance = L.map("map", { zoomControl: true }).setView([LAT, LON], 13);
+// Helper: sorgt dafür, dass mapInstance existiert
+function ensureMap() {
+  if (mapInstance) return;
 
-  // WMTS-Rasterkachel von api3.geo.admin.ch (swisstopo)
-  // Doku: https://api3.geo.admin.ch/  |  WMTS-Endpunkt: https://wmts.geo.admin.ch/1.0.0/{layer}/default/current/3857/{z}/{x}/{y}.png
-  L.tileLayer(
-    "https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.pixelkarte-farbe/default/current/3857/{z}/{x}/{y}.png",
-    {
-      attribution:
-        '© <a href="https://www.swisstopo.admin.ch" target="_blank" rel="noopener">swisstopo</a>',
-      maxZoom: 19,
-      tileSize: 256
-    }
-  ).addTo(mapInstance);
+  // Stil von api3.geo.admin.ch (vector tiles)
+  const styleUrl = "https://api3.geo.admin.ch/styles/ch.swisstopo.vt/v1.0/style.json";
 
-  // Marker Zürich
-  L.marker([LAT, LON]).addTo(mapInstance).bindPopup("Zürich").openPopup();
+  mapInstance = new maplibregl.Map({
+    container: "map",
+    style: styleUrl,
+    center: [LON, LAT],
+    zoom: 13,
+    hash: false
+  });
 
-  // Maßstab
-  L.control.scale({ imperial: false }).addTo(mapInstance);
+  mapInstance.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "top-right");
+  mapInstance.addControl(new maplibregl.ScaleControl({ unit: "metric" }));
+}
+
+// Liste -> Karte zentrieren + (Einzel-)Marker hervorheben
+let focusMarker = null;
+function focusMapOn(lon, lat, title = "Ladestation", openPopup = false) {
+  ensureMap();
+  mapInstance.easeTo({ center: [lon, lat], zoom: 15, duration: 500 });
+
+  if (focusMarker) focusMarker.remove();
+  focusMarker = new maplibregl.Marker({ color: "#ff3c9b" })
+    .setLngLat([lon, lat])
+    .setPopup(new maplibregl.Popup({ offset: 12 }).setText(title))
+    .addTo(mapInstance);
+
+  if (openPopup) focusMarker.togglePopup();
 }

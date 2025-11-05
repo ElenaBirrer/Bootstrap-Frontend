@@ -17,32 +17,12 @@
   </head>
   <body>
 
-    <!-- Background horizon layers -->
-    <div class="bg-horizon" aria-hidden="true"></div>
-    <svg class="wing-silhouette" viewBox="0 0 1200 600" aria-hidden="true">
-      <path d="M50 360c140-20 260-70 420-160 130-74 300-60 460-80 60-8 140-35 200-60-30 44-92 132-160 170-88 48-184 48-244 88-88 60-128 132-220 160-116 36-286 40-456 24 0 0 50-66 0-142z"
-            fill="url(#g)" opacity="0.07"/>
-      <defs>
-        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="#6E7BFF"/>
-          <stop offset="100%" stop-color="#FF6B9E"/>
-        </linearGradient>
-      </defs>
-    </svg>
-
-    <!-- Cockpit fascia -->
-    <div class="cockpit-fascia" aria-hidden="true">
-      <div class="fascia-rivet"></div><div class="fascia-rivet"></div><div class="fascia-rivet"></div>
-      <div class="fascia-rivet"></div><div class="fascia-rivet"></div><div class="fascia-rivet"></div>
-    </div>
-
     <!-- Topbar -->
     <header class="container py-3 topbar">
       <div class="d-flex align-items-center justify-content-between">
         <h1 class="app-title m-0">
           <span class="logo-dot"></span>
           <span class="grad">Cruise at Sunset</span>
-          <span class="title-trim"></span>
         </h1>
 
         <div class="d-flex align-items-center gap-2">
@@ -51,6 +31,15 @@
             <i class="bi bi-brightness-high me-1"></i> Theme
           </button>
         </div>
+      </div>
+
+      <!-- Quick actions (neu, nutzt bestehende Buttons) -->
+      <div class="mt-3 d-flex flex-wrap gap-2">
+        <button id="btnRefreshAll" class="btn runway"><i class="bi bi-arrow-repeat me-2"></i>Refresh All</button>
+        <label class="switch chip tiny">
+          <input id="autoRefreshToggle" type="checkbox" />
+          <span><i class="bi bi-clock-history me-1"></i>Auto-Refresh 60 s</span>
+        </label>
       </div>
     </header>
 
@@ -61,16 +50,17 @@
           <div class="card-header">
             <h2 class="panel-title">
               <span class="panel-icon"><i class="bi bi-heart"></i></span>
-              Zufälliges Katzenbild
+              Cabin Cam – Zufälliges Katzenbild
             </h2>
             <span class="altimeter"></span>
           </div>
-          <p class="card-sub">Wolkendeck gesichtet – neue Katze auf Abruf.</p>
+          <p class="card-sub">Blick aus der Kabine: ein neuer Passagier auf vier Pfoten.</p>
+
           <div class="mb-3">
-            <button id="btnCat" class="btn runway chevrons"><i class="bi bi-stars me-2"></i>Neue Katze</button>
+            <button id="btnCat" class="btn runway"><i class="bi bi-stars me-2"></i>Neue Katze</button>
           </div>
+
           <div id="catResult" class="window-porthole ratio ratio-16x9"></div>
-          <div class="window-rivets" aria-hidden="true"></div>
         </section>
 
         <!-- Bitcoin -->
@@ -78,21 +68,18 @@
           <div class="card-header">
             <h2 class="panel-title">
               <span class="panel-icon"><i class="bi bi-currency-bitcoin"></i></span>
-              Bitcoin-Preis
+              Tower Feed – Bitcoin-Preis
             </h2>
             <span class="altimeter"></span>
           </div>
-          <p class="card-sub">
-            Direkt aus dem Tower (CoinGecko). Zahlen im <span class="chip tiny">de-CH</span> Format.
-          </p>
+          <p class="card-sub">Direkt aus dem Tower (CoinGecko). Anzeige im <span class="chip tiny">de-CH</span> Format.</p>
+
           <div class="mb-3 d-flex gap-2 align-items-center">
-            <button id="btnBtc" class="btn runway chevrons"><i class="bi bi-coin me-2"></i>Laden</button>
+            <button id="btnBtc" class="btn runway"><i class="bi bi-coin me-2"></i>Laden</button>
             <span id="btcBadge" class="chip muted tiny" aria-live="polite">—</span>
           </div>
-          <div id="btcResult" class="stats">
-            <!-- Tiles kommen per JS -->
-          </div>
-          <div class="window-rivets" aria-hidden="true"></div>
+
+          <div id="btcResult" class="stats"><!-- Tiles per JS --></div>
         </section>
 
         <!-- Wetter -->
@@ -100,16 +87,17 @@
           <div class="card-header">
             <h2 class="panel-title">
               <span class="panel-icon"><i class="bi bi-cloud-sun"></i></span>
-              Wetter (Zürich)
+              Flight Conditions – Wetter (Zürich)
             </h2>
             <span class="altimeter"></span>
           </div>
-          <p class="card-sub">Golden Hour Check – Open-Meteo, heute.</p>
+          <p class="card-sub">Golden Hour Check (Open-Meteo): Max/Min &amp; Niederschlag heute.</p>
+
           <div class="mb-3">
-            <button id="btnWeather" class="btn runway chevrons"><i class="bi bi-cloud-drizzle me-2"></i>Laden</button>
+            <button id="btnWeather" class="btn runway"><i class="bi bi-cloud-drizzle me-2"></i>Laden</button>
           </div>
-          <div id="weatherResult" class="stats"></div>
-          <div class="window-rivets" aria-hidden="true"></div>
+
+          <div id="weatherResult" class="stats"><!-- Tiles per JS --></div>
         </section>
 
         <!-- EV + Suche -->
@@ -117,24 +105,23 @@
           <div class="card-header">
             <h2 class="panel-title">
               <span class="panel-icon"><i class="bi bi-ev-station"></i></span>
-              5 nächstgelegene Strom-Tankstellen
+              Ground Ops – 5 Ladestationen
             </h2>
             <span class="altimeter"></span>
           </div>
-          <p class="card-sub">PLZ angeben oder Umkreis Winterthur laden. Klick in die Liste zentriert die Karte.</p>
+          <p class="card-sub">PLZ eingeben oder Standard-Anflug Winterthur laden. Klick auf eine Station fokussiert die Karte.</p>
 
           <div class="d-flex flex-wrap gap-2 align-items-start mb-3">
             <label class="input">
               <span>PLZ</span>
               <input id="zipInput" placeholder="z. B. 8400" inputmode="numeric" />
             </label>
-            <button id="btnChargingZip" class="btn runway chevrons"><i class="bi bi-search me-2"></i>Nach PLZ</button>
-            <button id="btnCharging" class="btn runway chevrons ghost"><i class="bi bi-lightning-charge me-2"></i>Umkreis Winterthur</button>
+            <button id="btnChargingZip" class="btn runway"><i class="bi bi-search me-2"></i>Nach PLZ</button>
+            <button id="btnCharging" class="btn runway ghost"><i class="bi bi-lightning-charge me-2"></i>Umkreis Winterthur</button>
             <span id="evCountChip" class="chip tiny muted" aria-live="polite">—</span>
           </div>
 
           <div id="chargingResult" class="result-window"></div>
-          <div class="window-rivets" aria-hidden="true"></div>
         </section>
 
         <!-- Map -->
@@ -142,18 +129,19 @@
           <div class="card-header">
             <h2 class="panel-title">
               <span class="panel-icon"><i class="bi bi-geo-alt"></i></span>
-              Karte
+              Window Seat – Karte
             </h2>
             <span class="altimeter"></span>
           </div>
-          <p class="card-sub">„Window Seat“ – live zentrierbar über die Liste.</p>
+          <p class="card-sub">Zentriert auf Auswahl – wie ein Blick aus dem Fenster beim Kurvenflug.</p>
+
           <div class="mb-3">
-            <button id="btnMap" class="btn runway chevrons"><i class="bi bi-map me-2"></i>Karte anzeigen</button>
+            <button id="btnMap" class="btn runway"><i class="bi bi-map me-2"></i>Karte anzeigen</button>
           </div>
+
           <div id="map" class="window-porthole map-viewport">
             <div class="map-vignette" aria-hidden="true"></div>
           </div>
-          <div class="window-rivets" aria-hidden="true"></div>
         </section>
       </div>
     </main>
@@ -161,10 +149,42 @@
     <!-- Toasts -->
     <div class="toast-container position-fixed bottom-0 end-0 p-3"></div>
 
-    <!-- Scripts -->
+    <!-- Scripts (unverändert) -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="app.js"></script>
+
+    <!-- Mini-Snippets für neue Komfort-Features (nutzt bestehende Buttons) -->
+    <script>
+      (function () {
+        const btnCat = document.getElementById('btnCat');
+        const btnBtc = document.getElementById('btnBtc');
+        const btnWeather = document.getElementById('btnWeather');
+        const btnCharging = document.getElementById('btnCharging');
+        const btnChargingZip = document.getElementById('btnChargingZip');
+
+        // 1) Refresh All: löst die vorhandenen Klicks aus (Logik bleibt in app.js)
+        document.getElementById('btnRefreshAll').addEventListener('click', () => {
+          btnCat?.click(); btnBtc?.click(); btnWeather?.click();
+          // EV: wenn ein PLZ-Wert drin ist -> PLZ-Suche, sonst Umkreis Winterthur
+          const hasZip = (document.getElementById('zipInput')?.value || '').trim().length > 0;
+          (hasZip ? btnChargingZip : btnCharging)?.click();
+        });
+
+        // 2) Auto-Refresh 60s (ein/aus)
+        const toggle = document.getElementById('autoRefreshToggle');
+        let timer = null;
+        toggle.addEventListener('change', () => {
+          if (toggle.checked) {
+            // sofort einmal ausführen
+            document.getElementById('btnRefreshAll').click();
+            timer = setInterval(() => document.getElementById('btnRefreshAll').click(), 60000);
+          } else {
+            clearInterval(timer); timer = null;
+          }
+        });
+      })();
+    </script>
   </body>
 </html>

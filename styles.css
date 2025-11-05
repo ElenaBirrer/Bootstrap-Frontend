@@ -1,7 +1,6 @@
 /* ================================
    Cruise at Sunset – Cockpit Theme (mit Foto-Background)
-   >> Bild speichern unter: /assets/wing-sunset.jpg
-   >> Nur CSS – deine JS/Logik bleibt unverändert
+   >> Stelle sicher: /assets/wing-sunset.jpg existiert
    ================================ */
 
 /* ---------- Theme Tokens ---------- */
@@ -25,59 +24,42 @@
   --title:#FFFFFF;
   --titleGlow:rgba(255,107,158,.22);
 
-  /* Foto-Hintergrund */
   --bg-photo: url("assets/wing-sunset.jpg");
 }
 :root[data-theme="sky-light"]{
   --bg:#F3F6FF; --text:#0B0F1F; --muted:#4F5F8C;
-
-  --panel:rgba(255,255,255,.9);
-  --panelStroke:rgba(10,20,60,.15);
-  --panelInner:#fff;
-
+  --panel:rgba(255,255,255,.9); --panelStroke:rgba(10,20,60,.15); --panelInner:#fff;
   --primary:#E64E94; --secondary:#4A5CFF; --accent:#FF7E4D;
-
   --radius:22px; --shadow:0 16px 40px rgba(10,14,40,.15);
   --ring:0 0 0 3px color-mix(in srgb, var(--secondary) 28%, transparent);
-
   --title:#0B0F1F; --titleGlow:rgba(74,92,255,.18);
-
   --bg-photo: url("assets/wing-sunset.jpg");
 }
 
-/* ---------- Background: Foto + Overlays ---------- */
+/* ---------- Background (Foto + Overlays) ---------- */
 html,body{height:100%}
 body{
-  /* Foto + Lesbarkeits-Overlay + warme/kühle Glows */
   background:
     linear-gradient(180deg, rgba(10,14,30,.66) 0%, rgba(10,14,30,.52) 42%, rgba(10,14,30,.72) 100%),
     radial-gradient(1100px 520px at 72% 108%, rgba(255,156,107,.28), transparent 70%),
     radial-gradient(1100px 520px at 0%   0%, rgba(110,123,255,.22), transparent 65%),
     var(--bg-photo) center / cover no-repeat fixed;
-  background-color: var(--bg);   /* Fallback, falls Bild fehlt */
+  background-color: var(--bg);
   color:var(--text);
   -webkit-font-smoothing:antialiased;
   text-rendering:optimizeLegibility;
   overflow-x:hidden;
   min-height:100vh;
 }
-/* sanfter Rand-Glow am unteren Rand für Tiefe */
-body::before{
-  content:""; position:fixed; inset:0; pointer-events:none; z-index:-1;
-  background: radial-gradient(1200px 560px at 50% 120%, rgba(0,0,0,.18), transparent 60%);
-}
-@media (max-width: 768px){
-  body{ background-attachment: scroll; } /* Performance auf Mobile */
-}
+body::before{content:""; position:fixed; inset:0; pointer-events:none; z-index:-1;
+  background: radial-gradient(1200px 560px at 50% 120%, rgba(0,0,0,.18), transparent 60%);}
+@media (max-width: 768px){ body{ background-attachment: scroll; }}
 
 /* ---------- Topbar ---------- */
 .topbar{border-bottom:1px solid var(--panelStroke)}
 .app-title{font-size:clamp(22px,2.6vw,30px); letter-spacing:.2px}
-.grad{
-  background:linear-gradient(90deg,var(--secondary),var(--primary),var(--accent));
-  -webkit-background-clip:text;background-clip:text;color:transparent;
-  text-shadow:0 0 18px var(--titleGlow);
-}
+.grad{background:linear-gradient(90deg,var(--secondary),var(--primary),var(--accent));
+  -webkit-background-clip:text;background-clip:text;color:transparent; text-shadow:0 0 18px var(--titleGlow);}
 .logo-dot{display:inline-block;width:10px;height:10px;border-radius:50%;
   background:radial-gradient(circle at 35% 35%, #fff, var(--secondary));
   box-shadow:0 0 10px color-mix(in srgb,var(--secondary) 60%, transparent);
@@ -107,8 +89,7 @@ body::before{
 .panel-title{
   color:var(--title); font-weight:900; letter-spacing:.3px;
   text-shadow:0 2px 10px rgba(0,0,0,.45), 0 0 16px var(--titleGlow);
-  font-size:clamp(18px,2.1vw,22px); margin:0;
-  display:flex; align-items:center; gap:.6rem;
+  font-size:clamp(18px,2.1vw,22px); margin:0; display:flex; align-items:center; gap:.6rem;
 }
 .panel-icon{
   width:36px;height:36px;border-radius:999px;
@@ -118,7 +99,7 @@ body::before{
 }
 .card-sub{color:var(--muted); margin:8px 0 14px; font-size:1rem}
 
-/* Altimeter line (dekorativ) */
+/* Altimeter */
 .altimeter{
   width:120px;height:8px;border-radius:999px; flex:0 0 auto;
   background:
@@ -155,10 +136,8 @@ body::before{
   position:relative; isolation:isolate;
 }
 .btn.runway.small{padding:8px 12px; font-size:.9rem}
-.btn.runway.ghost{
-  background:linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.06));
-  color:var(--text); border:1px solid var(--panelStroke); box-shadow:none;
-}
+.btn.runway.ghost{background:linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.06));
+  color:var(--text); border:1px solid var(--panelStroke);}
 .btn.runway::before{
   content:""; position:absolute; inset:1px; border-radius:inherit; opacity:.38;
   background:linear-gradient(90deg, transparent 0%, rgba(255,255,255,.35) 50%, transparent 100%);
@@ -166,8 +145,6 @@ body::before{
 }
 .btn.runway:hover{filter:brightness(.98)}
 .btn.runway:focus-visible{outline:none; box-shadow:var(--ring)}
-
-/* Toggle chip */
 .switch input{appearance:none; width:0; height:0; margin:0}
 .switch{cursor:pointer}
 
@@ -188,6 +165,15 @@ body::before{
   border:1px solid var(--panelStroke); background:linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.06)); color:var(--text)}
 .chip.tiny{font-size:.75rem; padding:.2rem .5rem}
 .chip.muted{color:var(--muted)}
+.chip.warn{border-color:#ffd366; color:#ffd366; background:linear-gradient(180deg, rgba(255,211,102,.18), rgba(255,211,102,.08));}
+
+/* Waypoint-Chips (favorisierte PLZ) */
+.chip-row .chip-fav{position:relative; padding-right:1.6rem}
+.chip-row .chip-fav .chip-x{
+  position:absolute; right:.4rem; top:50%; transform:translateY(-50%);
+  border:0; background:transparent; color:inherit; opacity:.8; cursor:pointer; line-height:1;
+}
+.chip-row .chip-fav .chip-x:hover{opacity:1}
 
 /* ---------- Stats ---------- */
 .stats{display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
@@ -232,6 +218,33 @@ body::before{
 .leaflet-marker-icon{
   filter: drop-shadow(0 0 10px color-mix(in srgb, var(--primary) 65%, transparent))
           drop-shadow(0 0 18px color-mix(in srgb, var(--secondary) 45%, transparent));
+}
+
+/* ---------- NEW: Cabin lights / Seatbelt / Turbulence ---------- */
+/* Cabin lights ON: wärmerer Look, etwas heller */
+.cabin-on body, .cabin-on .card.window{ }
+.cabin-on .card.window{ background: rgba(24,30,65,.78); }
+.cabin-on .panel-title{ text-shadow:0 2px 12px rgba(255,160,100,.35), 0 0 18px var(--titleGlow); }
+
+/* Seatbelt ON: Badge sichtbar (in HTML per JS getoggelt) */
+/* (weitere Effekte kannst du hier ergänzen) */
+
+/* Turbulence: Micro-shakes der Cards/Map */
+@keyframes microShake{
+  0%{ transform:translate3d(0,0,0) rotate(0deg) }
+  20%{ transform:translate3d(0.5px,-0.6px,0) rotate(-.05deg) }
+  40%{ transform:translate3d(-0.7px,0.4px,0) rotate(.06deg) }
+  60%{ transform:translate3d(0.6px,0.3px,0) rotate(-.04deg) }
+  80%{ transform:translate3d(-0.4px,-0.5px,0) rotate(.05deg) }
+  100%{ transform:translate3d(0,0,0) rotate(0deg) }
+}
+.turbulence-on .card.window,
+.turbulence-on .map-viewport{
+  animation: microShake 1.2s infinite;
+}
+@media (prefers-reduced-motion: reduce){
+  .turbulence-on .card.window,
+  .turbulence-on .map-viewport{ animation:none; }
 }
 
 /* ---------- Accessibility ---------- */

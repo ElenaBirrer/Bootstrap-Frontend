@@ -19,26 +19,49 @@
 
     <!-- Topbar -->
     <header class="container py-3 topbar">
-      <div class="d-flex align-items-center justify-content-between">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
         <h1 class="app-title m-0">
           <span class="logo-dot"></span>
           <span class="grad">Cruise at Sunset</span>
         </h1>
 
-        <div class="d-flex align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
           <span class="chip muted" id="lastUpdateChip" aria-live="polite">bereit zum Abflug</span>
+
+          <!-- NEW: Seatbelt badge shows when seatbelt is ON -->
+          <span id="seatbeltBadge" class="chip warn tiny d-none">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i> Gurt an
+          </span>
+
           <button id="themeToggle" class="btn runway small" type="button" aria-pressed="false" title="Theme wechseln">
             <i class="bi bi-brightness-high me-1"></i> Theme
           </button>
         </div>
       </div>
 
-      <!-- Quick actions (neu, nutzt bestehende Buttons) -->
-      <div class="mt-3 d-flex flex-wrap gap-2">
+      <!-- Quick actions -->
+      <div class="mt-3 d-flex flex-wrap gap-2 align-items-center">
         <button id="btnRefreshAll" class="btn runway"><i class="bi bi-arrow-repeat me-2"></i>Refresh All</button>
+
         <label class="switch chip tiny">
           <input id="autoRefreshToggle" type="checkbox" />
           <span><i class="bi bi-clock-history me-1"></i>Auto-Refresh 60 s</span>
+        </label>
+
+        <!-- NEW: Cabin lights + Seatbelt + Turbulence -->
+        <label class="switch chip tiny">
+          <input id="cabinLightsToggle" type="checkbox" />
+          <span><i class="bi bi-lightbulb me-1"></i>Kabinenlicht</span>
+        </label>
+
+        <label class="switch chip tiny">
+          <input id="seatbeltToggle" type="checkbox" />
+          <span><i class="bi bi-seatbelt me-1"></i>Sicherheitsgurt</span>
+        </label>
+
+        <label class="switch chip tiny">
+          <input id="turbulenceToggle" type="checkbox" />
+          <span><i class="bi bi-wind me-1"></i>Turbulence</span>
         </label>
       </div>
     </header>
@@ -111,7 +134,7 @@
           </div>
           <p class="card-sub">PLZ eingeben oder Standard-Anflug Winterthur laden. Klick auf eine Station fokussiert die Karte.</p>
 
-          <div class="d-flex flex-wrap gap-2 align-items-start mb-3">
+          <div class="d-flex flex-wrap gap-2 align-items-start mb-2">
             <label class="input">
               <span>PLZ</span>
               <input id="zipInput" placeholder="z. B. 8400" inputmode="numeric" />
@@ -119,6 +142,13 @@
             <button id="btnChargingZip" class="btn runway"><i class="bi bi-search me-2"></i>Nach PLZ</button>
             <button id="btnCharging" class="btn runway ghost"><i class="bi bi-lightning-charge me-2"></i>Umkreis Winterthur</button>
             <span id="evCountChip" class="chip tiny muted" aria-live="polite">—</span>
+          </div>
+
+          <!-- NEW: Waypoints / Favoriten -->
+          <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+            <span class="chip tiny muted"><i class="bi bi-geo me-1"></i>Waypoints</span>
+            <div id="zipChips" class="chip-row d-flex flex-wrap gap-2"></div>
+            <button id="addZipFav" class="btn runway small"><i class="bi bi-plus-lg me-1"></i>Favorit</button>
           </div>
 
           <div id="chargingResult" class="result-window"></div>
@@ -149,41 +179,114 @@
     <!-- Toasts -->
     <div class="toast-container position-fixed bottom-0 end-0 p-3"></div>
 
-    <!-- Scripts (unverändert) -->
+    <!-- Scripts -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="app.js"></script>
 
-    <!-- Mini-Snippets für neue Komfort-Features (nutzt bestehende Buttons) -->
+    <!-- Small helper JS for the new UI features (keine API-Änderungen) -->
     <script>
       (function () {
+        const $html = document.documentElement;
+        const seatbeltBadge = document.getElementById('seatbeltBadge');
+
+        // Refresh All + Auto-Refresh (wie vorher)
         const btnCat = document.getElementById('btnCat');
         const btnBtc = document.getElementById('btnBtc');
         const btnWeather = document.getElementById('btnWeather');
         const btnCharging = document.getElementById('btnCharging');
         const btnChargingZip = document.getElementById('btnChargingZip');
+        const zipInput = document.getElementById('zipInput');
 
-        // 1) Refresh All: löst die vorhandenen Klicks aus (Logik bleibt in app.js)
         document.getElementById('btnRefreshAll').addEventListener('click', () => {
           btnCat?.click(); btnBtc?.click(); btnWeather?.click();
-          // EV: wenn ein PLZ-Wert drin ist -> PLZ-Suche, sonst Umkreis Winterthur
-          const hasZip = (document.getElementById('zipInput')?.value || '').trim().length > 0;
+          const hasZip = (zipInput?.value || '').trim().length > 0;
           (hasZip ? btnChargingZip : btnCharging)?.click();
         });
 
-        // 2) Auto-Refresh 60s (ein/aus)
-        const toggle = document.getElementById('autoRefreshToggle');
+        const autoT = document.getElementById('autoRefreshToggle');
         let timer = null;
-        toggle.addEventListener('change', () => {
-          if (toggle.checked) {
-            // sofort einmal ausführen
+        autoT.addEventListener('change', () => {
+          if (autoT.checked) {
             document.getElementById('btnRefreshAll').click();
             timer = setInterval(() => document.getElementById('btnRefreshAll').click(), 60000);
-          } else {
-            clearInterval(timer); timer = null;
-          }
+          } else { clearInterval(timer); timer = null; }
         });
+
+        // ===== NEW: Cabin lights toggle =====
+        const lightsT = document.getElementById('cabinLightsToggle');
+        if (localStorage.getItem('cabinLights') === 'on') {
+          lightsT.checked = true; $html.classList.add('cabin-on');
+        }
+        lightsT.addEventListener('change', () => {
+          $html.classList.toggle('cabin-on', lightsT.checked);
+          localStorage.setItem('cabinLights', lightsT.checked ? 'on' : 'off');
+        });
+
+        // ===== NEW: Seatbelt toggle =====
+        const seatT = document.getElementById('seatbeltToggle');
+        if (localStorage.getItem('seatbelt') === 'on') {
+          seatT.checked = true; $html.classList.add('seatbelt-on'); seatbeltBadge.classList.remove('d-none');
+        }
+        seatT.addEventListener('change', () => {
+          const on = seatT.checked;
+          $html.classList.toggle('seatbelt-on', on);
+          seatbeltBadge.classList.toggle('d-none', !on);
+          localStorage.setItem('seatbelt', on ? 'on' : 'off');
+        });
+
+        // ===== NEW: Turbulence Mode =====
+        const turbT = document.getElementById('turbulenceToggle');
+        if (localStorage.getItem('turbulence') === 'on') {
+          turbT.checked = true; $html.classList.add('turbulence-on');
+        }
+        turbT.addEventListener('change', () => {
+          $html.classList.toggle('turbulence-on', turbT.checked);
+          localStorage.setItem('turbulence', turbT.checked ? 'on' : 'off');
+        });
+
+        // ===== NEW: Waypoints / ZIP favorites =====
+        const addFavBtn = document.getElementById('addZipFav');
+        const chipRow = document.getElementById('zipChips');
+        const LS_KEY = 'favZips';
+
+        function loadFavs() {
+          try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; }
+          catch { return []; }
+        }
+        function saveFavs(arr){ localStorage.setItem(LS_KEY, JSON.stringify(arr)); }
+        function renderFavs(){
+          const favs = loadFavs();
+          chipRow.innerHTML = '';
+          if (!favs.length) {
+            chipRow.innerHTML = '<span class="chip tiny muted">Keine Favoriten</span>';
+            return;
+          }
+          favs.forEach(zip => {
+            const chip = document.createElement('span');
+            chip.className = 'chip tiny chip-fav';
+            chip.innerHTML = `<i class="bi bi-geo-alt me-1"></i>${zip}<button class="chip-x" aria-label="Favorit entfernen" title="Entfernen">&times;</button>`;
+            chip.addEventListener('click', (e) => {
+              if ((e.target).classList.contains('chip-x')) return; // remove handled below
+              zipInput.value = String(zip);
+              btnChargingZip.click();
+            });
+            chip.querySelector('.chip-x').addEventListener('click', (e) => {
+              e.stopPropagation();
+              const next = loadFavs().filter(z => String(z) !== String(zip));
+              saveFavs(next); renderFavs();
+            });
+            chipRow.appendChild(chip);
+          });
+        }
+        addFavBtn.addEventListener('click', () => {
+          const z = (zipInput.value || '').trim();
+          if (!/^\d{4,5}$/.test(z)) { alert('Bitte gültige PLZ eingeben.'); return; }
+          const favs = loadFavs();
+          if (!favs.includes(z)) { favs.push(z); saveFavs(favs); renderFavs(); }
+        });
+        renderFavs();
       })();
     </script>
   </body>

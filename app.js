@@ -1,5 +1,5 @@
 // =====================
-// app.js – Komplett
+// app.js – Logik unverändert + kleine UI-Ergänzungen
 // =====================
 
 // --- Konstanten ---
@@ -15,11 +15,7 @@ const BFE_GEOJSON_DE =
 
 // Helper UI
 function flowerLoader() {
-  return `
-    <div class="loader" aria-live="polite" aria-busy="true">
-      <span class="flower"></span><span class="flower"></span><span class="flower"></span><span class="flower"></span><span class="flower"></span>
-      <span class="ms-2 text-secondary">Lade…</span>
-    </div>`;
+  return `<div class="loader" aria-live="polite" aria-busy="true">Lade…</div>`;
 }
 function showToast(message, type = "danger") {
   const toast = $(`
@@ -34,6 +30,26 @@ function showToast(message, type = "danger") {
   new bootstrap.Toast(toast[0], { delay: 3500 }).show();
 }
 const fmt = new Intl.NumberFormat("de-CH", { maximumFractionDigits: 2 });
+
+// ======================
+// Theme Switcher (optional, rein UI)
+// ======================
+(function initTheme(){
+  const root = document.documentElement;
+  const saved = localStorage.getItem("theme-sky") || "sky";
+  root.setAttribute("data-theme", saved);
+
+  const btn = document.getElementById("themeToggle");
+  if (!btn) return;
+  btn.setAttribute("aria-pressed", saved === "sky" ? "true" : "false");
+  btn.addEventListener("click", () => {
+    const current = root.getAttribute("data-theme");
+    const next = current === "sky" ? "sky-light" : "sky";
+    root.setAttribute("data-theme", next);
+    localStorage.setItem("theme-sky", next);
+    btn.setAttribute("aria-pressed", next === "sky" ? "true" : "false");
+  });
+})();
 
 // ======================
 // Event-Bindings
@@ -73,6 +89,7 @@ async function loadCat() {
     const url = data?.[0]?.url;
     if (!url) throw new Error("Kein Bild erhalten.");
     $area.html(`<img src="${url}" alt="Cat" class="w-100 h-100 object-fit-cover">`);
+    updateLast("Katzenbild aktualisiert");
   } catch (err) {
     console.error(err);
     $area.html(`<div class="alert alert-danger">Fehler beim Laden des Katzenbilds.</div>`);
@@ -93,12 +110,19 @@ async function loadBitcoin() {
     const usd = data?.bitcoin?.usd;
     const chf = data?.bitcoin?.chf;
     if (usd == null || chf == null) throw new Error("Preisangaben fehlen.");
+    // render als Stat-Tiles
     $area.html(`
-      <ul class="list-group">
-        <li class="list-group-item d-flex justify-content-between">USD <span class="fw-semibold">$ ${fmt.format(usd)}</span></li>
-        <li class="list-group-item d-flex justify-content-between">CHF <span class="fw-semibold">CHF ${fmt.format(chf)}</span></li>
-      </ul>
+      <div class="stat">
+        <div class="label">USD</div>
+        <div class="value">$ ${fmt.format(usd)}</div>
+      </div>
+      <div class="stat">
+        <div class="label">CHF</div>
+        <div class="value">CHF ${fmt.format(chf)}</div>
+      </div>
     `);
+    $("#btcBadge").text(`letztes Update: ${new Date().toLocaleTimeString("de-CH")}`);
+    updateLast("BTC aktualisiert");
   } catch (err) {
     console.error(err);
     $area.html(`<div class="alert alert-danger">Fehler beim Laden des Bitcoin-Preises.</div>`);
@@ -122,13 +146,13 @@ async function loadWeather() {
     const tmin = d?.temperature_2m_min?.[0];
     const prec = d?.precipitation_sum?.[0];
     if ([tmax,tmin,prec].some(v=>v==null)) throw new Error("Wetterdaten unvollständig.");
+    // render als Stat-Tiles
     $area.html(`
-      <div class="row g-2">
-        <div class="col-12 col-sm-4"><div class="p-3 border rounded bg-light-subtle"><div class="small text-secondary">Max</div><div class="fs-5 fw-semibold">${fmt.format(tmax)} °C</div></div></div>
-        <div class="col-12 col-sm-4"><div class="p-3 border rounded bg-light-subtle"><div class="small text-secondary">Min</div><div class="fs-5 fw-semibold">${fmt.format(tmin)} °C</div></div></div>
-        <div class="col-12 col-sm-4"><div class="p-3 border rounded bg-light-subtle"><div class="small text-secondary">Niederschlag</div><div class="fs-5 fw-semibold">${fmt.format(prec)} mm</div></div></div>
-      </div>
+      <div class="stat"><div class="label">Max</div><div class="value">${fmt.format(tmax)} °C</div></div>
+      <div class="stat"><div class="label">Min</div><div class="value">${fmt.format(tmin)} °C</div></div>
+      <div class="stat"><div class="label">Niederschlag</div><div class="value">${fmt.format(prec)} mm</div></div>
     `);
+    updateLast("Wetter aktualisiert");
   } catch (err) {
     console.error(err);
     $area.html(`<div class="alert alert-danger">Fehler beim Laden des Wetters.</div>`);
@@ -137,7 +161,7 @@ async function loadWeather() {
 }
 
 // ========================
-// 4) EV-Ladestationen
+// 4) EV-Ladestationen (Logik unverändert)
 // ========================
 let BFE_CACHE = null;
 
@@ -156,7 +180,6 @@ function haversineKm(lat1, lon1, lat2, lon2){
 }
 const toNum = v => typeof v==="number" ? v : Number(String(v??"").replace(/\s+/g,"").replace(",","."));
 
-// GeoJSON laden (Cache)
 async function loadBfeGeo(){
   if (BFE_CACHE) return BFE_CACHE;
   const r = await fetch(BFE_GEOJSON_DE, { headers:{Accept:"application/json"} });
@@ -167,7 +190,6 @@ async function loadBfeGeo(){
   return feats;
 }
 
-// Station aus Feature extrahieren
 function extractStationInfo(f){
   const p = f.properties || {};
   const g = f.geometry || {};
@@ -197,7 +219,6 @@ function extractStationInfo(f){
   return {lat,lon,title,address};
 }
 
-// Hauptanzeige (Top-5) + Liste + Marker
 async function loadChargingStationsNearest(lat, lon){
   const $area = $("#chargingResult");
   $area.html(flowerLoader());
@@ -211,38 +232,35 @@ async function loadChargingStationsNearest(lat, lon){
 
     if(top5.length===0){
       $area.html(`<div class="alert alert-warning">Keine Stationen gefunden.</div>`);
-      clearMarkers();
-      return;
+      clearMarkers(); updateEvCount(0); return;
     }
 
-    $area.html(`<ul class="list-group">${
-      top5.map((s,i)=>`
-        <li class="list-group-item js-station" role="button"
-            data-lat="${s.lat}" data-lon="${s.lon}"
-            data-title="${(s.title||"").replace(/"/g,'&quot;')}">
-          <div class="d-flex justify-content-between">
-            <div>
-              <div class="fw-semibold">${i+1}. ${s.title}</div>
-              ${s.address ? `<div class="text-secondary small">${s.address}</div>` : ""}
-            </div>
-            <div class="text-nowrap small">${fmt.format(s._km)} km</div>
+    $area.html(`<ul class="list-group list-group-flush">${top5.map((s,i)=>`
+      <li class="list-group-item js-station" role="button"
+          data-lat="${s.lat}" data-lon="${s.lon}"
+          data-title="${(s.title||"").replace(/"/g,'&quot;')}">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <div class="fw-semibold">${i+1}. ${s.title}</div>
+            ${s.address ? `<div class="text-secondary small">${s.address}</div>` : ""}
           </div>
-        </li>`).join("")
-    }</ul>`);
+          <div class="text-nowrap small">${fmt.format(s._km)} km</div>
+        </div>
+      </li>`).join("")}
+    </ul>`);
 
-    // Marker auf Karte
     ensureMap();
     setMarkers(top5, [lat, lon]);
-
+    updateEvCount(top5.length);
+    updateLast("EV-Liste aktualisiert");
   }catch(err){
     console.error(err);
     $area.html(`<div class="alert alert-danger">Fehler beim Laden der Ladestationen.</div>`);
     showToast(err.message || "Unbekannter Fehler beim BFE-Dataset.");
-    clearMarkers();
+    clearMarkers(); updateEvCount(0);
   }
 }
 
-// PLZ -> Koordinaten -> Anzeige
 async function loadChargingStationsByZip(){
   const $area = $("#chargingResult");
   const raw = $("#zipInput").val()?.trim() || "";
@@ -256,19 +274,19 @@ async function loadChargingStationsByZip(){
     const r = await fetch(url, { headers:{Accept:"application/json"} });
     if(!r.ok) throw new Error("Geocoding fehlgeschlagen.");
     const m = await r.json();
-    if(!Array.isArray(m)||m.length===0){ $area.html(`<div class="alert alert-warning">PLZ nicht gefunden.</div>`); clearMarkers(); return; }
+    if(!Array.isArray(m)||m.length===0){ $area.html(`<div class="alert alert-warning">PLZ nicht gefunden.</div>`); clearMarkers(); updateEvCount(0); return; }
     const lat = parseFloat(m[0].lat), lon = parseFloat(m[0].lon);
     await loadChargingStationsNearest(lat, lon);
   }catch(err){
     console.error(err);
     $area.html(`<div class="alert alert-danger">Fehler bei der PLZ-Suche.</div>`);
     showToast(err.message || "Unbekannter Fehler bei der PLZ-Suche.");
-    clearMarkers();
+    clearMarkers(); updateEvCount(0);
   }
 }
 
 // ========================
-// 5) Karte (Leaflet + OSM)
+// 5) Karte (Leaflet + OSM) – unverändert, Marker-Halos via CSS
 // ========================
 let map = null;
 let baseMarker = null;
@@ -311,4 +329,14 @@ function focusMapOn([lat,lon], title="Ladestation", openPopup=false){
   map.setView([lat,lon], 15);
   const m = L.marker([lat,lon], {title}).addTo(map);
   if (openPopup) m.bindPopup(`<strong>${title}</strong>`).openPopup();
+}
+
+/* ===== kleine UI-Helpers ===== */
+function updateEvCount(n){
+  const chip = document.getElementById("evCountChip");
+  if (chip) chip.textContent = n ? `${n} Treffer` : "—";
+}
+function updateLast(text){
+  const chip = document.getElementById("lastUpdateChip");
+  if (chip) chip.textContent = `${text} • ${new Date().toLocaleTimeString("de-CH")}`;
 }

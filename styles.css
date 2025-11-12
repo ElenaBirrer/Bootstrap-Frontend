@@ -236,3 +236,7 @@ body::before{content:""; position:fixed; inset:0; pointer-events:none; z-index:-
 /* ---------- Accessibility ---------- */
 :focus-visible{outline:2px solid var(--secondary); outline-offset:2px}
 @media (prefers-reduced-motion: reduce){ *{animation:none !important; transition:none !important} }
+
+/* Bessere Lesbarkeit der Formular-Labels */
+.form-label { color: var(--text) !important; opacity: .95; }
+.form-text  { color: var(--muted); }

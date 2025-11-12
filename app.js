@@ -357,3 +357,135 @@ document.getElementById("btnAN225")?.addEventListener("click", () =>
 document.getElementById("btnConcorde")?.addEventListener("click", () =>
   openImages("Aérospatiale-BAC Concorde")
 );
+// ===== Formular: Bestätigung, kein Seiten-Sprung, Ziffern-Only für PLZ/Handy =====
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('applyForm');
+  if (!form) return;
+
+  // --- Toast Helper ---
+  function showToast(title, body, ok = true) {
+    const container = document.querySelector('.toast-container') || (() => {
+      const t = document.createElement('div');
+      t.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+      document.body.appendChild(t);
+      return t;
+    })();
+
+    const toastEl = document.createElement('div');
+    toastEl.className = `toast align-items-center text-bg-${ok ? 'success' : 'danger'}`;
+    toastEl.setAttribute('role', 'status');
+    toastEl.setAttribute('aria-live', 'polite');
+    toastEl.setAttribute('aria-atomic', 'true');
+    toastEl.innerHTML = `
+      <div class="d-flex">
+        <div class="toast-body">
+          <strong>${title}</strong><br>${body}
+        </div>
+        <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>`;
+    container.appendChild(toastEl);
+    const t = new bootstrap.Toast(toastEl, { delay: 3500 });
+    t.show();
+    toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+  }
+
+  // --- Ziffern-Only: PLZ & Handy (Tippen + Einfügen + Fallback) ---
+  const digitFields = [document.getElementById('zip'), document.getElementById('phone')].filter(Boolean);
+  digitFields.forEach(el => {
+    // Tippen blockieren (nur 0–9, Navigation/Ctrl erlaubt)
+    el.addEventListener('keydown', (e) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      const allowed = ['Backspace','Delete','Tab','ArrowLeft','ArrowRight','Home','End'];
+      const isDigit = /^[0-9]$/.test(e.key);
+      const isCombo  = ctrl && /[acvx]/i.test(e.key);
+      if (!isDigit && !allowed.includes(e.key) && !isCombo) e.preventDefault();
+    });
+    // Einfügen säubern
+    el.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const text = (e.clipboardData || window.clipboardData).getData('text') || '';
+      const digits = text.replace(/\D+/g, '');
+      const start = el.selectionStart ?? el.value.length;
+      const end   = el.selectionEnd   ?? el.value.length;
+      el.value = el.value.slice(0, start) + digits + el.value.slice(end);
+      const pos = start + digits.length;
+      el.setSelectionRange?.(pos, pos);
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    // Fallback (für Drag&Drop etc.)
+    el.addEventListener('input', () => {
+      const cleaned = el.value.replace(/\D+/g, '');
+      if (el.value !== cleaned) el.value = cleaned;
+      el.reportValidity?.();
+    });
+  });
+
+  // --- Feld-Spezifika ---
+  const MAX_PDF_BYTES = 5 * 1024 * 1024;
+
+  const birth = document.getElementById('birth');
+  if (birth) {
+    const today = new Date().toISOString().slice(0, 10);
+    birth.max = today;
+    birth.min = '1900-01-01';
+  }
+
+  const cv = document.getElementById('cv');
+  if (cv) {
+    cv.addEventListener('change', () => {
+      cv.setCustomValidity('');
+      const f = cv.files && cv.files[0];
+      if (!f) return;
+      if (f.type !== 'application/pdf') {
+        cv.setCustomValidity('Bitte eine PDF-Datei wählen.');
+      } else if (f.size > MAX_PDF_BYTES) {
+        cv.setCustomValidity('PDF ist zu gross (max. 5 MB).');
+      }
+      cv.reportValidity?.();
+    });
+  }
+
+  const portfolio = document.getElementById('portfolio');
+  if (portfolio) {
+    portfolio.addEventListener('input', () => {
+      portfolio.setCustomValidity('');
+      const v = portfolio.value.trim();
+      if (v && !/^https?:\/\/.+/i.test(v)) {
+        portfolio.setCustomValidity('URL muss mit http(s):// beginnen.');
+      }
+    });
+  }
+
+  // --- Submit: kein Reload, Bestätigung anzeigen, Fokus auf Fehler ---
+  const successBanner = document.getElementById('applySuccess');
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();      // verhindert Seiten-Reload → kein Sprung nach oben
+    e.stopPropagation();
+
+    // HTML5-Validierung auslösen
+    form.classList.add('was-validated');
+
+    if (!form.checkValidity()) {
+      showToast('Bitte prüfen', 'Einige Eingaben sind noch ungültig.', false);
+      const firstInvalid = form.querySelector(':invalid');
+      if (firstInvalid) {
+        firstInvalid.focus({ preventScroll: true });
+        firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+
+    // Erfolg – hier könntest du später fetch()/Mail auslösen
+    showToast('Danke! ✈️', 'Deine Angaben wurden erfasst.');
+    if (successBanner) {
+      successBanner.classList.remove('d-none');
+      successBanner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      setTimeout(() => successBanner.classList.add('d-none'), 5000);
+    }
+
+    form.reset();
+    form.classList.remove('was-validated');
+  }, false);
+});

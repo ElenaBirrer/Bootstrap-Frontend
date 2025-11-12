@@ -44,8 +44,6 @@
     <i class="bi bi-images me-1"></i>Concorde
   </button>
 </div>
-
-
         </div>
       </div>
 
@@ -413,5 +411,167 @@
         });
       })();
     </script>
+
+    <!-- Bewerbungs-Formular (collapsible) -->
+<section class="card window" id="applySection">
+  <div class="card-header">
+    <h2 class="panel-title m-0">
+      <span class="panel-icon"><i class="bi bi-ui-checks-grid"></i></span>
+      Bewerbung – Kontakt & Unterlagen
+    </h2>
+    <span class="altimeter"></span>
+  </div>
+
+  <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-2 mb-3">
+    <p class="card-sub m-0">
+      Bitte fülle alle notwendigen Felder aus. Wir nutzen die Daten nur zur Kontaktaufnahme.
+    </p>
+    <!-- Toggle: Ein/Ausklappen -->
+    <button class="btn runway small" type="button"
+            data-bs-toggle="collapse" data-bs-target="#applyCollapse"
+            aria-expanded="true" aria-controls="applyCollapse">
+      <i class="bi bi-chevron-down me-1"></i> Formular ein-/ausklappen
+    </button>
+  </div>
+
+  <div id="applyCollapse" class="collapse show">
+    <form id="applyForm" class="needs-validation" novalidate>
+ <!-- Erfolgshinweis (per JS sichtbar/unsichtbar) -->
+<div id="applySuccess" class="alert alert-success d-none" role="alert">
+  <strong>Danke! ✈️</strong> Deine Angaben wurden erfasst. Wir melden uns bei dir.
+</div>
+
+
+      <!-- ===== 1) Persönliche Angaben ===== -->
+      <h3 class="h5 mb-3">1) Persönliche Angaben</h3>
+      <div class="row g-3">
+        <div class="col-sm-4">
+          <label for="gender" class="form-label">Geschlecht</label>
+          <select id="gender" class="form-select" required>
+            <option value="" selected disabled>Bitte wählen …</option>
+            <option>weiblich</option>
+            <option>männlich</option>
+            <option>divers</option>
+            <option>keine Angabe</option>
+          </select>
+          <div class="invalid-feedback">Bitte auswählen.</div>
+        </div>
+
+        <div class="col-sm-4">
+          <label for="firstname" class="form-label">Vorname</label>
+          <input id="firstname" type="text" class="form-control" placeholder="Alex" required>
+          <div class="invalid-feedback">Bitte Vornamen angeben.</div>
+        </div>
+
+        <div class="col-sm-4">
+          <label for="lastname" class="form-label">Name</label>
+          <input id="lastname" type="text" class="form-control" placeholder="Muster" required>
+          <div class="invalid-feedback">Bitte Nachnamen angeben.</div>
+        </div>
+
+        <div class="col-md-8">
+          <label for="street" class="form-label">Strasse & Nr.</label>
+          <input id="street" type="text" class="form-control" placeholder="Flughafenstrasse 1" required>
+          <div class="invalid-feedback">Bitte Strasse & Nr. angeben.</div>
+        </div>
+
+        <div class="col-md-2">
+          <label for="zip" class="form-label">PLZ</label>
+        <!-- PLZ -->
+<input id="zip" class="form-control only-digits"
+       type="text" inputmode="numeric" pattern="^\d{4}$"
+       maxlength="4" placeholder="8001" required>
+          <div class="invalid-feedback">4-stellige PLZ (CH) eingeben.</div>
+        </div>
+
+        <div class="col-md-2">
+          <label for="city" class="form-label">Ort</label>
+          <input id="city" type="text" class="form-control" placeholder="Zürich" required>
+          <div class="invalid-feedback">Bitte Ort angeben.</div>
+        </div>
+
+        <div class="col-md-6">
+          <label for="email" class="form-label">E-Mail</label>
+          <input id="email" type="email" class="form-control" placeholder="du@beispiel.ch" required>
+          <div class="invalid-feedback">Bitte gültige E-Mail eingeben.</div>
+        </div>
+
+        <div class="col-md-6">
+          <label for="phone" class="form-label">Handy-Nummer</label>
+          <input id="phone" class="form-control only-digits"
+       type="text" inputmode="numeric" pattern="^\d{7,15}$"
+       minlength="7" maxlength="15" placeholder="0791234567" required>
+<div class="invalid-feedback">Nur Ziffern (7–15 Stellen) eingeben.</div>
+
+          <div class="invalid-feedback">Bitte gültige Telefonnummer (7–15 Ziffern, + / Leerzeichen / − möglich).</div>
+        </div>
+
+        <div class="col-md-6">
+          <label for="contactPref" class="form-label">Bevorzugte Kontaktaufnahme</label>
+          <select id="contactPref" class="form-select" required>
+            <option value="" selected disabled>Bitte wählen …</option>
+            <option>E-Mail</option>
+            <option>Telefon</option>
+            <option>WhatsApp/Signal</option>
+          </select>
+          <div class="invalid-feedback">Bitte auswählen.</div>
+        </div>
+
+        <div class="col-md-6">
+          <label for="birth" class="form-label">Geburtsdatum</label>
+          <input id="birth" type="date" class="form-control" required>
+          <div class="invalid-feedback">Bitte Datum wählen.</div>
+        </div>
+      </div>
+
+      <!-- ===== 2) Motivation & Portfolio ===== -->
+      <h3 class="h5 mt-4 mb-3">2) Motivation & Portfolio</h3>
+      <div class="row g-3">
+        <div class="col-12">
+          <label for="motivation" class="form-label">Motivationsschreiben</label>
+          <textarea id="motivation" class="form-control" rows="5" placeholder="Warum möchtest du Teil der Crew werden?" required></textarea>
+          <div class="invalid-feedback">Bitte eine kurze Motivation schreiben.</div>
+        </div>
+
+        <div class="col-md-6">
+          <label for="cv" class="form-label">Lebenslauf (PDF Upload)</label>
+          <input id="cv" type="file" class="form-control" accept="application/pdf" required>
+          <div class="form-text">Nur PDF, max. 5 MB.</div>
+          <div class="invalid-feedback">Bitte eine PDF-Datei (max. 5 MB) hochladen.</div>
+        </div>
+
+        <div class="col-md-6">
+          <label for="portfolio" class="form-label">Link zu Portfolio (URL)</label>
+          <input id="portfolio" type="url" class="form-control" placeholder="https://dein-portfolio.ch" required>
+          <div class="invalid-feedback">Bitte gültige URL angeben (http(s):// …).</div>
+        </div>
+      </div>
+
+      <!-- ===== 3) Datenschutz ===== -->
+      <h3 class="h5 mt-4 mb-3">3) Datenschutz</h3>
+      <div class="row g-3 align-items-center">
+        <div class="col-lg-8">
+          <a href="https://www.privacypolicies.com/" target="_blank" rel="noopener noreferrer" class="link-light">
+            Externe Datenschutzbestimmungen
+          </a>
+          <div class="form-check mt-2">
+            <input id="accept" class="form-check-input" type="checkbox" value="1" required>
+            <label class="form-check-label" for="accept">
+              Ich habe die Datenschutzbestimmungen gelesen und akzeptiere sie.
+            </label>
+            <div class="invalid-feedback">Bitte akzeptieren, um fortzufahren.</div>
+          </div>
+        </div>
+
+        <div class="col-lg-4 text-lg-end">
+          <button type="submit" class="btn runway">
+            <i class="bi bi-envelope-fill me-2"></i> Absenden
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</section>
+<div class="toast-container position-fixed bottom-0 end-0 p-3"></div>
   </body>
 </html>

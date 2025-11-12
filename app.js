@@ -340,3 +340,20 @@ function updateLast(text){
   const chip = document.getElementById("lastUpdateChip");
   if (chip) chip.textContent = `${text} • ${new Date().toLocaleTimeString("de-CH")}`;
 }
+
+// --- Google Images Helper ---
+function openImages(query) {
+  const url = new URL("https://www.google.com/search");
+  url.searchParams.set("tbm", "isch"); // Images vertical
+  url.searchParams.set("q", query);
+  window.open(url.toString(), "_blank", "noopener,noreferrer");
+}
+
+// Buttons verdrahten
+document.getElementById("btnAN225")?.addEventListener("click", () =>
+  openImages("Antonov An-225 Mriya")
+);
+
+document.getElementById("btnConcorde")?.addEventListener("click", () =>
+  openImages("Aérospatiale-BAC Concorde")
+);

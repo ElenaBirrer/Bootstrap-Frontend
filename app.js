@@ -489,3 +489,114 @@ document.addEventListener('DOMContentLoaded', () => {
     form.classList.remove('was-validated');
   }, false);
 });
+
+// ===== Crosswind / Headwind Rechner (manuell, robust) =====
+document.addEventListener('DOMContentLoaded', () => {
+  const card = document.getElementById('xwindCard');
+  if (!card) return;
+
+  // Inputs
+  const rwSelect     = document.getElementById('rwSelect');
+  const rwCustomWrap = document.getElementById('rwCustomWrap');
+  const rwCustom     = document.getElementById('rwCustom');
+  const windDir      = document.getElementById('windDir');
+  const windSpd      = document.getElementById('windSpd');
+  const xwCalc       = document.getElementById('xwCalc');
+
+  // Outputs
+  const outRunway = document.getElementById('outRunway');
+  const outDelta  = document.getElementById('outDelta');
+  const outHead   = document.getElementById('outHead');
+  const outCross  = document.getElementById('outCross');
+  const note      = document.getElementById('xwNote');
+
+  // Einheit (Radio-Gruppe name="xwUnit")
+  const getUnit = () => document.querySelector('input[name="xwUnit"]:checked')?.value || 'kt';
+
+  // Zahlen-only Helper
+  const onlyDigits = (el) => {
+    if (!el) return;
+    el.addEventListener('keydown', (e) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      const ok = ['Backspace','Delete','Tab','ArrowLeft','ArrowRight','Home','End'].includes(e.key)
+              || /^[0-9]$/.test(e.key)
+              || (ctrl && /[acvx]/i.test(e.key));
+      if (!ok) e.preventDefault();
+    });
+    el.addEventListener('paste', (e) => {
+      e.preventDefault();
+      const txt = (e.clipboardData || window.clipboardData).getData('text') || '';
+      const dig = txt.replace(/\D+/g, '');
+      const s = el.selectionStart ?? el.value.length;
+      const t = el.selectionEnd   ?? el.value.length;
+      el.value = el.value.slice(0, s) + dig + el.value.slice(t);
+      const pos = s + dig.length;
+      el.setSelectionRange?.(pos, pos);
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    el.addEventListener('input', () => { el.value = el.value.replace(/\D+/g, ''); });
+  };
+  [rwCustom, windDir, windSpd].forEach(onlyDigits);
+
+  // Benutzerdefiniert zeigen/verstecken (gleich beim Laden & bei Änderungen)
+  function toggleCustom() {
+    if (rwSelect.value === 'custom') {
+      rwCustomWrap.classList.remove('d-none');
+      rwCustom.focus();
+    } else {
+      rwCustomWrap.classList.add('d-none');
+    }
+  }
+  toggleCustom();
+  rwSelect.addEventListener('change', toggleCustom);
+  rwSelect.addEventListener('input', toggleCustom);
+
+  // Mathe
+  const toRad   = (x) => x * Math.PI / 180;
+  const norm360 = (x) => ((x % 360) + 360) % 360;
+
+  function calc() {
+    // Runwaywinkel bestimmen
+    let rw = (rwSelect.value === 'custom') ? Number(rwCustom.value) : Number(rwSelect.value);
+    const wd = Number(windDir.value);
+    const ws = Number(windSpd.value);
+
+    if (!Number.isFinite(rw) || !Number.isFinite(wd) || !Number.isFinite(ws)) {
+      note.textContent = 'Bitte Runway & Wind vollständig angeben.';
+      return;
+    }
+    rw = Math.max(0, Math.min(360, rw));
+
+    // Winkel −180..+180 (Vorzeichen bestimmt links/rechts / gegen/rücken)
+    let delta = norm360(wd - rw);
+    if (delta > 180) delta -= 360;
+
+    // Immer intern in KNOTEN rechnen
+    const u = getUnit();                    // 'kt' | 'kmh'
+    const wsKt = (u === 'kmh') ? (ws / 1.852) : ws;
+
+    const headKt  = wsKt * Math.cos(toRad(delta));   // + Gegenwind, − Rückenwind
+    const crossKt = wsKt * Math.sin(toRad(delta));   // + von rechts, − von links
+
+    // Für die ANZEIGE in gewählter Einheit konvertieren
+    const toDisplay = (vKt) => (u === 'kmh' ? vKt * 1.852 : vKt);
+    const headDisp  = Math.round(Math.abs(toDisplay(headKt)));
+    const crossDisp = Math.round(Math.abs(toDisplay(crossKt)));
+
+    // Ausgaben
+    outRunway.textContent = `${Math.round(rw)}°`;
+    outDelta.textContent  = `${Math.round(delta)}°`;
+    outHead.textContent   = `${headKt >= 0 ? 'Gegenwind' : 'Rückenwind'} ${headDisp} ${u}`;
+    outCross.textContent  = `${crossKt >= 0 ? 'Seitenwind von rechts' : 'Seitenwind von links'} ${crossDisp} ${u}`;
+    note.textContent      = 'Berechnet (cos/sin-Komponenten).';
+  }
+
+  // Rechnen: Button, Enter, Einheitenwechsel
+  xwCalc.addEventListener('click', calc);
+  [rwCustom, windDir, windSpd].forEach(el => el?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); calc(); }
+  }));
+  document.querySelectorAll('input[name="xwUnit"]').forEach(radio => {
+    radio.addEventListener('change', () => { if (windDir.value && windSpd.value) calc(); });
+  });
+});

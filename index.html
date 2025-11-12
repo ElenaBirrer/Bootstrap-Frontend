@@ -411,6 +411,111 @@
         });
       })();
     </script>
+  <!-- Crosswind / Headwind Rechner (MANUELL) -->
+<section class="card window mb-4" id="xwindCard">
+  <div class="card-header">
+    <h2 class="panel-title">
+      <span class="panel-icon"><i class="bi bi-compass"></i></span>
+      Crosswind &amp; Headwind – Quick Calc
+    </h2>
+    <span class="altimeter"></span>
+  </div>
+
+  <p class="card-sub">
+    Runway wählen oder selbst eingeben – dazu Windrichtung (°) und Windstärke. Wir berechnen Gegen-/Rückenwind &amp; Seitenwind.
+  </p>
+
+  <!-- Eingaben -->
+  <div class="row g-3">
+    <div class="col-lg-4">
+      <label class="input w-100">
+        <span>Runway</span>
+        <select id="rwSelect">
+          <option value="100" selected>LSZH RWY 10 (100°)</option>
+          <option value="280">LSZH RWY 28 (280°)</option>
+          <option value="160">LSZH RWY 16 (160°)</option>
+          <option value="340">LSZH RWY 34 (340°)</option>
+          <option value="custom">Benutzerdefiniert …</option>
+        </select>
+      </label>
+    </div>
+
+    <!-- erscheint automatisch bei "Benutzerdefiniert …" -->
+    <div class="col-lg-4 d-none" id="rwCustomWrap">
+      <label class="input w-100">
+        <span>Benutzerdefinierte Bahnrichtung (°)</span>
+        <input id="rwCustom" type="text" class="form-control"
+               inputmode="numeric"
+               pattern="^([0-9]|[1-2][0-9]|3[0-5][0-9]|360)$"
+               maxlength="3" placeholder="z. B. 275">
+      </label>
+    </div>
+
+    <div class="col-lg-2">
+      <label class="input w-100">
+        <span>Windrichtung (°)</span>
+        <input id="windDir" type="text" class="form-control"
+               inputmode="numeric"
+               pattern="^([0-9]|[1-2][0-9]|3[0-5][0-9]|360)$"
+               maxlength="3" placeholder="z. B. 290">
+      </label>
+    </div>
+
+    <div class="col-lg-2">
+      <label class="input w-100">
+        <span>Windstärke</span>
+        <input id="windSpd" type="text" class="form-control"
+               inputmode="numeric" pattern="^[0-9]{1,3}$"
+               maxlength="3" placeholder="z. B. 12">
+      </label>
+    </div>
+  </div>
+
+  <!-- Einheit + Berechnen -->
+  <div class="d-flex flex-wrap align-items-center gap-3 mt-3">
+    <div class="d-flex align-items-center gap-2">
+      <span class="chip tiny muted">Einheit:</span>
+      <div class="btn-group btn-group-sm" role="group" aria-label="Einheit">
+        <input type="radio" class="btn-check" name="xwUnit" id="unitKt" value="kt" checked>
+        <label class="btn btn-outline-light" for="unitKt">kt</label>
+
+        <input type="radio" class="btn-check" name="xwUnit" id="unitKmh" value="kmh">
+        <label class="btn btn-outline-light" for="unitKmh">km/h</label>
+      </div>
+    </div>
+
+    <button id="xwCalc" class="btn runway small ms-auto">
+      <i class="bi bi-calculator me-1"></i> Berechnen
+    </button>
+  </div>
+
+  <!-- Ergebnisse -->
+  <div class="stats mt-3">
+    <div class="stat">
+      <div class="label">Bahnrichtung</div>
+      <div class="value" id="outRunway">—</div>
+    </div>
+    <div class="stat">
+      <div class="label">Winkeldifferenz</div>
+      <div class="value" id="outDelta">—</div>
+    </div>
+    <div class="stat">
+      <div class="label">Gegen-/Rückenwind</div>
+      <div class="value" id="outHead">—</div>
+    </div>
+    <div class="stat">
+      <div class="label">Seitenwind</div>
+      <div class="value" id="outCross">—</div>
+    </div>
+  </div>
+
+  <div class="mt-2">
+    <span id="xwNote" class="chip tiny muted" aria-live="polite">
+      Gib Werte ein und klicke „Berechnen“.
+    </span>
+  </div>
+</section>
+
 
     <!-- Bewerbungs-Formular (collapsible) -->
 <section class="card window" id="applySection">

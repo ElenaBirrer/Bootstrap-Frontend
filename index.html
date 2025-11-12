@@ -27,12 +27,9 @@
 
         <div class="d-flex align-items-center gap-2 flex-wrap">
           <span class="chip muted" id="lastUpdateChip" aria-live="polite">bereit zum Abflug</span>
-
-          <!-- NEW: Seatbelt badge shows when seatbelt is ON -->
           <span id="seatbeltBadge" class="chip warn tiny d-none">
             <i class="bi bi-exclamation-triangle-fill me-1"></i> Gurt an
           </span>
-
           <button id="themeToggle" class="btn runway small" type="button" aria-pressed="false" title="Theme wechseln">
             <i class="bi bi-brightness-high me-1"></i> Theme
           </button>
@@ -48,7 +45,6 @@
           <span><i class="bi bi-clock-history me-1"></i>Auto-Refresh 60 s</span>
         </label>
 
-        <!-- NEW: Cabin lights + Seatbelt + Turbulence -->
         <label class="switch chip tiny">
           <input id="cabinLightsToggle" type="checkbox" />
           <span><i class="bi bi-lightbulb me-1"></i>Kabinenlicht</span>
@@ -68,6 +64,7 @@
 
     <main class="container pb-5">
       <div class="grid">
+
         <!-- Katzenbild -->
         <section class="card window">
           <div class="card-header">
@@ -102,7 +99,7 @@
             <span id="btcBadge" class="chip muted tiny" aria-live="polite">—</span>
           </div>
 
-          <div id="btcResult" class="stats"><!-- Tiles per JS --></div>
+          <div id="btcResult" class="stats"></div>
         </section>
 
         <!-- Wetter -->
@@ -120,7 +117,7 @@
             <button id="btnWeather" class="btn runway"><i class="bi bi-cloud-drizzle me-2"></i>Laden</button>
           </div>
 
-          <div id="weatherResult" class="stats"><!-- Tiles per JS --></div>
+          <div id="weatherResult" class="stats"></div>
         </section>
 
         <!-- EV + Suche -->
@@ -144,7 +141,6 @@
             <span id="evCountChip" class="chip tiny muted" aria-live="polite">—</span>
           </div>
 
-          <!-- NEW: Waypoints / Favoriten -->
           <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
             <span class="chip tiny muted"><i class="bi bi-geo me-1"></i>Waypoints</span>
             <div id="zipChips" class="chip-row d-flex flex-wrap gap-2"></div>
@@ -154,7 +150,7 @@
           <div id="chargingResult" class="result-window"></div>
         </section>
 
-        <!-- Map -->
+        <!-- Karte -->
         <section class="card window map-card">
           <div class="card-header">
             <h2 class="panel-title">
@@ -173,10 +169,80 @@
             <div class="map-vignette" aria-hidden="true"></div>
           </div>
         </section>
+
+        <!-- Boarding Pass – jetzt breiter & klarer -->
+        <section class="card window boarding">
+          <div class="card-header">
+            <h2 class="panel-title panel-title-strong">
+              <span class="panel-icon"><i class="bi bi-ticket-perforated"></i></span>
+              Boarding Pass – Flugrechner
+            </h2>
+            <span class="altimeter"></span>
+          </div>
+          <p class="card-sub">Gib <strong>Von</strong>/<strong>Nach</strong> ein (Stadt, IATA oder PLZ). Wir berechnen Distanz &amp; geschätzte Flugzeit.</p>
+
+          <div class="boarding-inner">
+            <!-- linke Spalte: Inputs -->
+            <div class="boarding-fields">
+              <div class="grid-2">
+                <label class="input">
+                  <span>Von</span>
+                  <input id="bpFrom" placeholder="Zürich / ZRH / 8001" />
+                </label>
+                <label class="input">
+                  <span>Nach</span>
+                  <input id="bpTo" placeholder="Berlin / BER / 10115" />
+                </label>
+              </div>
+
+              <div class="grid-2">
+                <label class="input">
+                  <span>Flugprofil</span>
+                  <select id="bpProfile">
+                    <option value="900">Jet (Langstrecke) – 900 km/h</option>
+                    <option value="820">Jet (Kurz/Mittel) – 820 km/h</option>
+                    <option value="550">Turboprop – 550 km/h</option>
+                    <option value="350">Leichtflugzeug – 350 km/h</option>
+                  </select>
+                </label>
+
+                <div class="d-flex align-items-end">
+                  <button id="bpCalc" class="btn runway w-100"><i class="bi bi-calculator me-2"></i>Berechnen</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- rechte Spalte: Ticket -->
+            <div class="boarding-ticket window-porthole">
+              <div class="bp-legs">
+                <div class="bp-leg">
+                  <div class="bp-leglabel">FROM</div>
+                  <div class="bp-city" id="bpFromResolved">—</div>
+                </div>
+                <div class="bp-arrow">✈</div>
+                <div class="bp-leg">
+                  <div class="bp-leglabel">TO</div>
+                  <div class="bp-city" id="bpToResolved">—</div>
+                </div>
+              </div>
+
+              <div class="bp-stats">
+                <div class="bp-stat"><span class="bp-k">Distanz</span><span class="bp-v" id="bpDist">—</span></div>
+                <div class="bp-stat"><span class="bp-k">Richtung</span><span class="bp-v" id="bpBearing">—</span></div>
+                <div class="bp-stat"><span class="bp-k">Flugdauer</span><span class="bp-v" id="bpTime">—</span></div>
+              </div>
+
+              <div class="bp-meta">
+                <span class="chip tiny muted" id="bpNote">Profil: —</span>
+                <div class="bp-barcode" aria-hidden="true"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
       </div>
     </main>
 
-    <!-- Toasts -->
     <div class="toast-container position-fixed bottom-0 end-0 p-3"></div>
 
     <!-- Scripts -->
@@ -185,13 +251,13 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="app.js"></script>
 
-    <!-- Small helper JS for the new UI features (keine API-Änderungen) -->
+    <!-- Helper JS (nur UI; Boarding Pass uses Open-Meteo Geocoding) -->
     <script>
       (function () {
         const $html = document.documentElement;
         const seatbeltBadge = document.getElementById('seatbeltBadge');
 
-        // Refresh All + Auto-Refresh (wie vorher)
+        // Refresh All + Auto-Refresh (wie gehabt)
         const btnCat = document.getElementById('btnCat');
         const btnBtc = document.getElementById('btnBtc');
         const btnWeather = document.getElementById('btnWeather');
@@ -214,7 +280,7 @@
           } else { clearInterval(timer); timer = null; }
         });
 
-        // ===== NEW: Cabin lights toggle =====
+        // Cabin lights
         const lightsT = document.getElementById('cabinLightsToggle');
         if (localStorage.getItem('cabinLights') === 'on') {
           lightsT.checked = true; $html.classList.add('cabin-on');
@@ -224,7 +290,7 @@
           localStorage.setItem('cabinLights', lightsT.checked ? 'on' : 'off');
         });
 
-        // ===== NEW: Seatbelt toggle =====
+        // Seatbelt
         const seatT = document.getElementById('seatbeltToggle');
         if (localStorage.getItem('seatbelt') === 'on') {
           seatT.checked = true; $html.classList.add('seatbelt-on'); seatbeltBadge.classList.remove('d-none');
@@ -236,7 +302,7 @@
           localStorage.setItem('seatbelt', on ? 'on' : 'off');
         });
 
-        // ===== NEW: Turbulence Mode =====
+        // Turbulence
         const turbT = document.getElementById('turbulenceToggle');
         if (localStorage.getItem('turbulence') === 'on') {
           turbT.checked = true; $html.classList.add('turbulence-on');
@@ -246,47 +312,92 @@
           localStorage.setItem('turbulence', turbT.checked ? 'on' : 'off');
         });
 
-        // ===== NEW: Waypoints / ZIP favorites =====
+        // Waypoints / Favorites (PLZ)
         const addFavBtn = document.getElementById('addZipFav');
         const chipRow = document.getElementById('zipChips');
         const LS_KEY = 'favZips';
-
-        function loadFavs() {
-          try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; }
-          catch { return []; }
-        }
-        function saveFavs(arr){ localStorage.setItem(LS_KEY, JSON.stringify(arr)); }
+        function loadFavs() { try { return JSON.parse(localStorage.getItem(LS_KEY)) || []; } catch { return []; } }
+        function saveFavs(a){ localStorage.setItem(LS_KEY, JSON.stringify(a)); }
         function renderFavs(){
-          const favs = loadFavs();
-          chipRow.innerHTML = '';
-          if (!favs.length) {
-            chipRow.innerHTML = '<span class="chip tiny muted">Keine Favoriten</span>';
-            return;
-          }
+          const favs = loadFavs(); chipRow.innerHTML = '';
+          if (!favs.length){ chipRow.innerHTML = '<span class="chip tiny muted">Keine Favoriten</span>'; return; }
           favs.forEach(zip => {
-            const chip = document.createElement('span');
-            chip.className = 'chip tiny chip-fav';
-            chip.innerHTML = `<i class="bi bi-geo-alt me-1"></i>${zip}<button class="chip-x" aria-label="Favorit entfernen" title="Entfernen">&times;</button>`;
-            chip.addEventListener('click', (e) => {
-              if ((e.target).classList.contains('chip-x')) return; // remove handled below
-              zipInput.value = String(zip);
-              btnChargingZip.click();
-            });
-            chip.querySelector('.chip-x').addEventListener('click', (e) => {
-              e.stopPropagation();
-              const next = loadFavs().filter(z => String(z) !== String(zip));
-              saveFavs(next); renderFavs();
-            });
-            chipRow.appendChild(chip);
+            const el = document.createElement('span');
+            el.className = 'chip tiny chip-fav';
+            el.innerHTML = `<i class="bi bi-geo-alt me-1"></i>${zip}<button class="chip-x" title="Entfernen">&times;</button>`;
+            el.addEventListener('click', (e)=>{ if(e.target.classList.contains('chip-x'))return; zipInput.value=String(zip); btnChargingZip.click();});
+            el.querySelector('.chip-x').addEventListener('click',(e)=>{e.stopPropagation(); const next=loadFavs().filter(z=>String(z)!==String(zip)); saveFavs(next); renderFavs();});
+            chipRow.appendChild(el);
           });
         }
-        addFavBtn.addEventListener('click', () => {
-          const z = (zipInput.value || '').trim();
-          if (!/^\d{4,5}$/.test(z)) { alert('Bitte gültige PLZ eingeben.'); return; }
-          const favs = loadFavs();
-          if (!favs.includes(z)) { favs.push(z); saveFavs(favs); renderFavs(); }
+        addFavBtn?.addEventListener('click', ()=>{
+          const z=(zipInput.value||'').trim(); if(!/^\d{4,5}$/.test(z)){ alert('Bitte gültige PLZ eingeben.'); return; }
+          const favs = loadFavs(); if(!favs.includes(z)){ favs.push(z); saveFavs(favs); renderFavs(); }
         });
         renderFavs();
+
+        // ===== Boarding Pass Rechner =====
+        const fromI = document.getElementById('bpFrom');
+        const toI   = document.getElementById('bpTo');
+        const prof  = document.getElementById('bpProfile');
+        const btnBP = document.getElementById('bpCalc');
+
+        const outFrom = document.getElementById('bpFromResolved');
+        const outTo   = document.getElementById('bpToResolved');
+        const outDist = document.getElementById('bpDist');
+        const outBear = document.getElementById('bpBearing');
+        const outTime = document.getElementById('bpTime');
+        const outNote = document.getElementById('bpNote');
+
+        async function geocode(q){
+          const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=de&format=json`;
+          const r = await fetch(url); if(!r.ok) throw new Error('Geocoding fehlgeschlagen');
+          const j = await r.json();
+          if(!j.results || !j.results.length) throw new Error('Ort nicht gefunden');
+          const g = j.results[0];
+          return { name: g.name + (g.country ? ', ' + g.country_code : ''), lat: g.latitude, lon: g.longitude };
+        }
+        const toRad = d => d*Math.PI/180, toDeg = r => r*180/Math.PI;
+        function haversine(a,b){
+          const R=6371; const dLat=toRad(b.lat-a.lat), dLon=toRad(b.lon-a.lon);
+          const sLat1=toRad(a.lat), sLat2=toRad(b.lat);
+          const h = Math.sin(dLat/2)**2 + Math.cos(sLat1)*Math.cos(sLat2)*Math.sin(dLon/2)**2;
+          return 2*R*Math.asin(Math.sqrt(h));
+        }
+        function bearing(a,b){
+          const φ1=toRad(a.lat), φ2=toRad(b.lat), λ1=toRad(a.lon), λ2=toRad(b.lon);
+          const y=Math.sin(λ2-λ1)*Math.cos(φ2);
+          const x=Math.cos(φ1)*Math.cos(φ2)*Math.cos(λ2-λ1)-Math.sin(φ1)*Math.sin(φ2);
+          let brng=(toDeg(Math.atan2(y,x))+360)%360;
+          const dirs=['N','NE','E','SE','S','SW','W','NW','N']; const idx=Math.round(brng/45);
+          return `${Math.round(brng)}° ${dirs[idx]}`;
+        }
+        function fmtKm(km){ return new Intl.NumberFormat('de-CH',{maximumFractionDigits:0}).format(km) + ' km'; }
+        function fmtTime(hours){
+          const h=Math.floor(hours), m=Math.round((hours-h)*60);
+          return `${h} h ${m.toString().padStart(2,'0')} min`;
+        }
+
+        btnBP.addEventListener('click', async ()=>{
+          const q1=(fromI.value||'').trim(); const q2=(toI.value||'').trim();
+          if(!q1 || !q2){ alert('Bitte Start- und Zielort eingeben.'); return; }
+          btnBP.disabled=true; btnBP.classList.add('loading');
+          try{
+            const [A,B] = await Promise.all([geocode(q1), geocode(q2)]);
+            outFrom.textContent = A.name; outTo.textContent = B.name;
+            const d = haversine(A,B);
+            const spd = Number(prof.value)||820;
+            outDist.textContent = fmtKm(d);
+            outBear.textContent = bearing(A,B);
+            outTime.textContent = fmtTime(d/spd);
+            outNote.textContent = `Profil ~${spd} km/h • Great Circle`;
+          }catch(e){
+            outNote.textContent='Fehler: ' + (e.message||e);
+            outDist.textContent='—'; outBear.textContent='—'; outTime.textContent='—'; outFrom.textContent='—'; outTo.textContent='—';
+          }finally{
+            btnBP.disabled=false; btnBP.classList.remove('loading');
+          }
+        });
       })();
     </script>
   </body>

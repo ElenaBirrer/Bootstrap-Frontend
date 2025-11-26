@@ -1,5 +1,5 @@
 // =====================
-// app.js – Logik unverändert + kleine UI-Ergänzungen
+// app.js – Vollständige Version
 // =====================
 
 // --- Konstanten ---
@@ -110,7 +110,6 @@ async function loadBitcoin() {
     const usd = data?.bitcoin?.usd;
     const chf = data?.bitcoin?.chf;
     if (usd == null || chf == null) throw new Error("Preisangaben fehlen.");
-    // render als Stat-Tiles
     $area.html(`
       <div class="stat">
         <div class="label">USD</div>
@@ -146,7 +145,6 @@ async function loadWeather() {
     const tmin = d?.temperature_2m_min?.[0];
     const prec = d?.precipitation_sum?.[0];
     if ([tmax,tmin,prec].some(v=>v==null)) throw new Error("Wetterdaten unvollständig.");
-    // render als Stat-Tiles
     $area.html(`
       <div class="stat"><div class="label">Max</div><div class="value">${fmt.format(tmax)} °C</div></div>
       <div class="stat"><div class="label">Min</div><div class="value">${fmt.format(tmin)} °C</div></div>
@@ -161,7 +159,7 @@ async function loadWeather() {
 }
 
 // ========================
-// 4) EV-Ladestationen (Logik unverändert)
+// 4) EV-Ladestationen
 // ========================
 let BFE_CACHE = null;
 
@@ -178,7 +176,7 @@ function haversineKm(lat1, lon1, lat2, lon2){
   const a=Math.sin(dLat/2)**2+Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
-const toNum = v => typeof v==="number" ? v : Number(String(v??"").replace(/\s+/g,"").replace(",","."));
+const toNum = v => typeof v==="number" ? v : Number(String(v??"").replace(/\s+/g,"").replace(",",".")); 
 
 async function loadBfeGeo(){
   if (BFE_CACHE) return BFE_CACHE;
@@ -189,7 +187,6 @@ async function loadBfeGeo(){
   BFE_CACHE = feats;
   return feats;
 }
-
 function extractStationInfo(f){
   const p = f.properties || {};
   const g = f.geometry || {};
@@ -236,8 +233,8 @@ async function loadChargingStationsNearest(lat, lon){
     }
 
     $area.html(`<ul class="list-group list-group-flush">${top5.map((s,i)=>`
-      <li class="list-group-item js-station" role="button"
-          data-lat="${s.lat}" data-lon="${s.lon}"
+      <li class="list-group-item js-station" role="button" 
+          data-lat="${s.lat}" data-lon="${s.lon}" 
           data-title="${(s.title||"").replace(/"/g,'&quot;')}">
         <div class="d-flex justify-content-between align-items-start">
           <div>
@@ -286,7 +283,7 @@ async function loadChargingStationsByZip(){
 }
 
 // ========================
-// 5) Karte (Leaflet + OSM) – unverändert, Marker-Halos via CSS
+// 5) Karte (Leaflet + OSM)
 // ========================
 let map = null;
 let baseMarker = null;
@@ -305,7 +302,6 @@ function showMap(){
   ensureMap();
   map.setView([LAT, LON], 13);
 }
-
 function clearMarkers(){
   if (!map) return;
   evMarkers.forEach(m=>map.removeLayer(m));
@@ -344,153 +340,18 @@ function updateLast(text){
 // --- Google Images Helper ---
 function openImages(query) {
   const url = new URL("https://www.google.com/search");
-  url.searchParams.set("tbm", "isch"); // Images vertical
+  url.searchParams.set("tbm", "isch");
   url.searchParams.set("q", query);
   window.open(url.toString(), "_blank", "noopener,noreferrer");
 }
-
-// Buttons verdrahten
 document.getElementById("btnAN225")?.addEventListener("click", () =>
   openImages("Antonov An-225 Mriya")
 );
-
 document.getElementById("btnConcorde")?.addEventListener("click", () =>
   openImages("Aérospatiale-BAC Concorde")
 );
-// ===== Formular: Bestätigung, kein Seiten-Sprung, Ziffern-Only für PLZ/Handy =====
-document.addEventListener('DOMContentLoaded', () => {
-  const form = document.getElementById('applyForm');
-  if (!form) return;
 
-  // --- Toast Helper ---
-  function showToast(title, body, ok = true) {
-    const container = document.querySelector('.toast-container') || (() => {
-      const t = document.createElement('div');
-      t.className = 'toast-container position-fixed bottom-0 end-0 p-3';
-      document.body.appendChild(t);
-      return t;
-    })();
-
-    const toastEl = document.createElement('div');
-    toastEl.className = `toast align-items-center text-bg-${ok ? 'success' : 'danger'}`;
-    toastEl.setAttribute('role', 'status');
-    toastEl.setAttribute('aria-live', 'polite');
-    toastEl.setAttribute('aria-atomic', 'true');
-    toastEl.innerHTML = `
-      <div class="d-flex">
-        <div class="toast-body">
-          <strong>${title}</strong><br>${body}
-        </div>
-        <button type="button" class="btn-close btn-close-white me-2 m-auto"
-                data-bs-dismiss="toast" aria-label="Close"></button>
-      </div>`;
-    container.appendChild(toastEl);
-    const t = new bootstrap.Toast(toastEl, { delay: 3500 });
-    t.show();
-    toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
-  }
-
-  // --- Ziffern-Only: PLZ & Handy (Tippen + Einfügen + Fallback) ---
-  const digitFields = [document.getElementById('zip'), document.getElementById('phone')].filter(Boolean);
-  digitFields.forEach(el => {
-    // Tippen blockieren (nur 0–9, Navigation/Ctrl erlaubt)
-    el.addEventListener('keydown', (e) => {
-      const ctrl = e.ctrlKey || e.metaKey;
-      const allowed = ['Backspace','Delete','Tab','ArrowLeft','ArrowRight','Home','End'];
-      const isDigit = /^[0-9]$/.test(e.key);
-      const isCombo  = ctrl && /[acvx]/i.test(e.key);
-      if (!isDigit && !allowed.includes(e.key) && !isCombo) e.preventDefault();
-    });
-    // Einfügen säubern
-    el.addEventListener('paste', (e) => {
-      e.preventDefault();
-      const text = (e.clipboardData || window.clipboardData).getData('text') || '';
-      const digits = text.replace(/\D+/g, '');
-      const start = el.selectionStart ?? el.value.length;
-      const end   = el.selectionEnd   ?? el.value.length;
-      el.value = el.value.slice(0, start) + digits + el.value.slice(end);
-      const pos = start + digits.length;
-      el.setSelectionRange?.(pos, pos);
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-    // Fallback (für Drag&Drop etc.)
-    el.addEventListener('input', () => {
-      const cleaned = el.value.replace(/\D+/g, '');
-      if (el.value !== cleaned) el.value = cleaned;
-      el.reportValidity?.();
-    });
-  });
-
-  // --- Feld-Spezifika ---
-  const MAX_PDF_BYTES = 5 * 1024 * 1024;
-
-  const birth = document.getElementById('birth');
-  if (birth) {
-    const today = new Date().toISOString().slice(0, 10);
-    birth.max = today;
-    birth.min = '1900-01-01';
-  }
-
-  const cv = document.getElementById('cv');
-  if (cv) {
-    cv.addEventListener('change', () => {
-      cv.setCustomValidity('');
-      const f = cv.files && cv.files[0];
-      if (!f) return;
-      if (f.type !== 'application/pdf') {
-        cv.setCustomValidity('Bitte eine PDF-Datei wählen.');
-      } else if (f.size > MAX_PDF_BYTES) {
-        cv.setCustomValidity('PDF ist zu gross (max. 5 MB).');
-      }
-      cv.reportValidity?.();
-    });
-  }
-
-  const portfolio = document.getElementById('portfolio');
-  if (portfolio) {
-    portfolio.addEventListener('input', () => {
-      portfolio.setCustomValidity('');
-      const v = portfolio.value.trim();
-      if (v && !/^https?:\/\/.+/i.test(v)) {
-        portfolio.setCustomValidity('URL muss mit http(s):// beginnen.');
-      }
-    });
-  }
-
-  // --- Submit: kein Reload, Bestätigung anzeigen, Fokus auf Fehler ---
-  const successBanner = document.getElementById('applySuccess');
-
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();      // verhindert Seiten-Reload → kein Sprung nach oben
-    e.stopPropagation();
-
-    // HTML5-Validierung auslösen
-    form.classList.add('was-validated');
-
-    if (!form.checkValidity()) {
-      showToast('Bitte prüfen', 'Einige Eingaben sind noch ungültig.', false);
-      const firstInvalid = form.querySelector(':invalid');
-      if (firstInvalid) {
-        firstInvalid.focus({ preventScroll: true });
-        firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-      return;
-    }
-
-    // Erfolg – hier könntest du später fetch()/Mail auslösen
-    showToast('Danke! ✈️', 'Deine Angaben wurden erfasst.');
-    if (successBanner) {
-      successBanner.classList.remove('d-none');
-      successBanner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      setTimeout(() => successBanner.classList.add('d-none'), 5000);
-    }
-
-    form.reset();
-    form.classList.remove('was-validated');
-  }, false);
-});
-
-// ===== Crosswind / Headwind Rechner (manuell, robust) =====
+// ===== Crosswind / Headwind Rechner =====
 document.addEventListener('DOMContentLoaded', () => {
   const card = document.getElementById('xwindCard');
   if (!card) return;
@@ -510,8 +371,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const outCross  = document.getElementById('outCross');
   const note      = document.getElementById('xwNote');
 
-  // Einheit (Radio-Gruppe name="xwUnit")
-  const getUnit = () => document.querySelector('input[name="xwUnit"]:checked')?.value || 'kt';
+  // Einheiten
+  const KT_TO_KMH = 1.852;
+  const getUnit = () =>
+    document.querySelector('input[name="xwUnit"]:checked')?.value || 'kt';
+  let currentUnit = getUnit();
 
   // Zahlen-only Helper
   const onlyDigits = (el) => {
@@ -525,20 +389,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     el.addEventListener('paste', (e) => {
       e.preventDefault();
-      const txt = (e.clipboardData || window.clipboardData).getData('text') || '';
-      const dig = txt.replace(/\D+/g, '');
+      const t = (e.clipboardData || window.clipboardData).getData('text') || '';
+      const d = t.replace(/\D+/g, '');
       const s = el.selectionStart ?? el.value.length;
-      const t = el.selectionEnd   ?? el.value.length;
-      el.value = el.value.slice(0, s) + dig + el.value.slice(t);
-      const pos = s + dig.length;
+      const en= el.selectionEnd   ?? el.value.length;
+      el.value = el.value.slice(0, s) + d + el.value.slice(en);
+      const pos = s + d.length;
       el.setSelectionRange?.(pos, pos);
-      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('input', { bubbles:true }));
     });
     el.addEventListener('input', () => { el.value = el.value.replace(/\D+/g, ''); });
   };
   [rwCustom, windDir, windSpd].forEach(onlyDigits);
 
-  // Benutzerdefiniert zeigen/verstecken (gleich beim Laden & bei Änderungen)
+  // Custom-Runway an/aus
   function toggleCustom() {
     if (rwSelect.value === 'custom') {
       rwCustomWrap.classList.remove('d-none');
@@ -547,19 +411,19 @@ document.addEventListener('DOMContentLoaded', () => {
       rwCustomWrap.classList.add('d-none');
     }
   }
-  toggleCustom();
   rwSelect.addEventListener('change', toggleCustom);
-  rwSelect.addEventListener('input', toggleCustom);
+  toggleCustom();
 
   // Mathe
   const toRad   = (x) => x * Math.PI / 180;
   const norm360 = (x) => ((x % 360) + 360) % 360;
+  const fmtVal = (vKt, unit) => unit === 'kmh' ? `${Math.round(vKt * KT_TO_KMH)} km/h` : `${Math.round(vKt)} kt`;
 
   function calc() {
-    // Runwaywinkel bestimmen
     let rw = (rwSelect.value === 'custom') ? Number(rwCustom.value) : Number(rwSelect.value);
     const wd = Number(windDir.value);
     const ws = Number(windSpd.value);
+    const unit = getUnit();
 
     if (!Number.isFinite(rw) || !Number.isFinite(wd) || !Number.isFinite(ws)) {
       note.textContent = 'Bitte Runway & Wind vollständig angeben.';
@@ -567,36 +431,119 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     rw = Math.max(0, Math.min(360, rw));
 
-    // Winkel −180..+180 (Vorzeichen bestimmt links/rechts / gegen/rücken)
     let delta = norm360(wd - rw);
     if (delta > 180) delta -= 360;
 
-    // Immer intern in KNOTEN rechnen
-    const u = getUnit();                    // 'kt' | 'kmh'
-    const wsKt = (u === 'kmh') ? (ws / 1.852) : ws;
+    const wsKt = (unit === 'kmh') ? (ws / 1.852) : ws;
 
-    const headKt  = wsKt * Math.cos(toRad(delta));   // + Gegenwind, − Rückenwind
-    const crossKt = wsKt * Math.sin(toRad(delta));   // + von rechts, − von links
+    const headKt  = wsKt * Math.cos(toRad(delta)); // + Gegenwind / − Rückenwind
+    const crossKt = wsKt * Math.sin(toRad(delta)); // + von rechts / − von links
 
-    // Für die ANZEIGE in gewählter Einheit konvertieren
-    const toDisplay = (vKt) => (u === 'kmh' ? vKt * 1.852 : vKt);
-    const headDisp  = Math.round(Math.abs(toDisplay(headKt)));
-    const crossDisp = Math.round(Math.abs(toDisplay(crossKt)));
-
-    // Ausgaben
     outRunway.textContent = `${Math.round(rw)}°`;
     outDelta.textContent  = `${Math.round(delta)}°`;
-    outHead.textContent   = `${headKt >= 0 ? 'Gegenwind' : 'Rückenwind'} ${headDisp} ${u}`;
-    outCross.textContent  = `${crossKt >= 0 ? 'Seitenwind von rechts' : 'Seitenwind von links'} ${crossDisp} ${u}`;
-    note.textContent      = 'Berechnet (cos/sin-Komponenten).';
+    outHead.textContent   = `${headKt >= 0 ? 'Gegenwind' : 'Rückenwind'} ${fmtVal(Math.abs(headKt), unit)}`;
+    outCross.textContent  = `${crossKt >= 0 ? 'Seitenwind von rechts' : 'Seitenwind von links'} ${fmtVal(Math.abs(crossKt), unit)}`;
+    note.textContent      = `Berechnet in kt, Ausgabe in ${unit === 'kmh' ? 'km/h' : 'kt'}.`;
   }
 
-  // Rechnen: Button, Enter, Einheitenwechsel
+  // Einheit umschalten: Eingabewert konvertieren + neu rechnen
+  document.querySelectorAll('input[name="xwUnit"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      const newUnit = getUnit();
+      if (windSpd.value) {
+        let v = Number(windSpd.value);
+        if (Number.isFinite(v)) {
+          if (currentUnit === 'kmh' && newUnit === 'kt') v = v / 1.852;
+          else if (currentUnit === 'kt' && newUnit === 'kmh') v = v * 1.852;
+          windSpd.value = String(Math.round(v));
+        }
+      }
+      currentUnit = newUnit;
+      if (windDir.value && windSpd.value) calc();
+    });
+  });
+
+  // Rechnen
   xwCalc.addEventListener('click', calc);
   [rwCustom, windDir, windSpd].forEach(el => el?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); calc(); }
   }));
-  document.querySelectorAll('input[name="xwUnit"]').forEach(radio => {
-    radio.addEventListener('change', () => { if (windDir.value && windSpd.value) calc(); });
+});
+
+// ===== Formular – klassischer POST an Webhook.im neuen Tab =====
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('applyForm');
+  if (!form) return;
+
+  // Ziffern-only für PLZ/Phone
+  const digitFields = [document.getElementById('zip'), document.getElementById('phone')].filter(Boolean);
+  digitFields.forEach(el => {
+    el.addEventListener('keydown', (e) => {
+      const ctrl = e.ctrlKey || e.metaKey;
+      const ok = ['Backspace','Delete','Tab','ArrowLeft','ArrowRight','Home','End'].includes(e.key)
+              || /^[0-9]$/.test(e.key) || (ctrl && /[acvx]/i.test(e.key));
+      if (!ok) e.preventDefault();
+    });
+    el.addEventListener('input', () => {
+      const clean = el.value.replace(/\D+/g, '');
+      if (el.value !== clean) el.value = clean;
+    });
+  });
+
+  // PDF prüfen
+  const MAX_PDF_BYTES = 5 * 1024 * 1024;
+  const cv = document.getElementById('cv');
+  if (cv) {
+    cv.addEventListener('change', () => {
+      cv.setCustomValidity('');
+      const f = cv.files && cv.files[0];
+      if (!f) return;
+      if (f.type !== 'application/pdf') cv.setCustomValidity('Bitte eine PDF-Datei wählen.');
+      else if (f.size > MAX_PDF_BYTES) cv.setCustomValidity('PDF ist zu gross (max. 5 MB).');
+      cv.reportValidity?.();
+    });
+  }
+
+  // URL prüfen
+  const portfolio = document.getElementById('portfolio');
+  if (portfolio) {
+    portfolio.addEventListener('input', () => {
+      portfolio.setCustomValidity('');
+      const v = portfolio.value.trim();
+      if (v && !/^https?:\/\/.+/i.test(v)) {
+        portfolio.setCustomValidity('URL muss mit http(s):// beginnen.');
+      }
+    });
+  }
+
+  // Datum begrenzen
+  const birth = document.getElementById('birth');
+  if (birth) {
+    const today = new Date().toISOString().slice(0, 10);
+    birth.max = today;
+    birth.min = '1900-01-01';
+  }
+
+  // Submit: nur bei Ungültig blockieren – sonst normaler POST (target=_blank) direkt zum Webhook
+  const successBanner = document.getElementById('applySuccess');
+  form.addEventListener('submit', (e) => {
+    form.classList.add('was-validated');
+
+    if (!form.checkValidity()) {
+      e.preventDefault();
+      showToast('Bitte prüfen', 'Einige Eingaben sind noch ungültig.', 'danger');
+      const firstInvalid = form.querySelector(':invalid');
+      if (firstInvalid) {
+        firstInvalid.focus({ preventScroll: true });
+        firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      return;
+    }
+
+    // Bei gültigen Eingaben NICHT verhindern:
+    // → Browser macht klassischen POST an deinen Webhook in NEUEM Tab (wegen target="_blank").
+    // Auf deiner Seite kannst du optional noch ein lokales Feedback zeigen:
+    successBanner?.classList.remove('d-none');
+    setTimeout(() => successBanner?.classList.add('d-none'), 5000);
   });
 });

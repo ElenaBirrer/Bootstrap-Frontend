@@ -517,7 +517,7 @@
 </section>
 
 
-    <!-- Bewerbungs-Formular (collapsible) -->
+<!-- Bewerbungs-Formular (collapsible) -->
 <section class="card window" id="applySection">
   <div class="card-header">
     <h2 class="panel-title m-0">
@@ -531,7 +531,6 @@
     <p class="card-sub m-0">
       Bitte fülle alle notwendigen Felder aus. Wir nutzen die Daten nur zur Kontaktaufnahme.
     </p>
-    <!-- Toggle: Ein/Ausklappen -->
     <button class="btn runway small" type="button"
             data-bs-toggle="collapse" data-bs-target="#applyCollapse"
             aria-expanded="true" aria-controls="applyCollapse">
@@ -540,91 +539,91 @@
   </div>
 
   <div id="applyCollapse" class="collapse show">
-    <form id="applyForm" class="needs-validation" novalidate>
- <!-- Erfolgshinweis (per JS sichtbar/unsichtbar) -->
-<div id="applySuccess" class="alert alert-success d-none" role="alert">
-  <strong>Danke! ✈️</strong> Deine Angaben wurden erfasst. Wir melden uns bei dir.
-</div>
+    <!-- WICHTIG: action = dein Webhook, method POST, enctype multipart, target _blank -->
+    <form id="applyForm"
+          action="https://webhook.site/9a24ac4f-09f1-48b0-8177-4257767c77ae"
+          method="POST" enctype="multipart/form-data" target="_blank" novalidate>
 
+      <!-- Erfolgshinweis (wird per JS eingeblendet) -->
+      <div id="applySuccess" class="alert alert-success d-none" role="alert">
+        <strong>Danke! ✈️</strong> Deine Angaben wurden erfasst. Wir melden uns bei dir.
+      </div>
 
       <!-- ===== 1) Persönliche Angaben ===== -->
       <h3 class="h5 mb-3">1) Persönliche Angaben</h3>
       <div class="row g-3">
         <div class="col-sm-4">
           <label for="gender" class="form-label">Geschlecht</label>
-          <select id="gender" class="form-select" required>
+          <select id="gender" name="gender" class="form-select" required>
             <option value="" selected disabled>Bitte wählen …</option>
-            <option>weiblich</option>
-            <option>männlich</option>
-            <option>divers</option>
-            <option>keine Angabe</option>
+            <option value="weiblich">weiblich</option>
+            <option value="männlich">männlich</option>
+            <option value="divers">divers</option>
+            <option value="keine Angabe">keine Angabe</option>
           </select>
           <div class="invalid-feedback">Bitte auswählen.</div>
         </div>
 
         <div class="col-sm-4">
           <label for="firstname" class="form-label">Vorname</label>
-          <input id="firstname" type="text" class="form-control" placeholder="Alex" required>
+          <input id="firstname" name="firstname" type="text" class="form-control" placeholder="Alex" required>
           <div class="invalid-feedback">Bitte Vornamen angeben.</div>
         </div>
 
         <div class="col-sm-4">
           <label for="lastname" class="form-label">Name</label>
-          <input id="lastname" type="text" class="form-control" placeholder="Muster" required>
+          <input id="lastname" name="lastname" type="text" class="form-control" placeholder="Muster" required>
           <div class="invalid-feedback">Bitte Nachnamen angeben.</div>
         </div>
 
         <div class="col-md-8">
           <label for="street" class="form-label">Strasse & Nr.</label>
-          <input id="street" type="text" class="form-control" placeholder="Flughafenstrasse 1" required>
+          <input id="street" name="street" type="text" class="form-control" placeholder="Flughafenstrasse 1" required>
           <div class="invalid-feedback">Bitte Strasse & Nr. angeben.</div>
         </div>
 
         <div class="col-md-2">
           <label for="zip" class="form-label">PLZ</label>
-        <!-- PLZ -->
-<input id="zip" class="form-control only-digits"
-       type="text" inputmode="numeric" pattern="^\d{4}$"
-       maxlength="4" placeholder="8001" required>
+          <input id="zip" name="zip" class="form-control only-digits"
+                 type="text" inputmode="numeric" pattern="^\d{4}$"
+                 maxlength="4" placeholder="8001" required>
           <div class="invalid-feedback">4-stellige PLZ (CH) eingeben.</div>
         </div>
 
         <div class="col-md-2">
           <label for="city" class="form-label">Ort</label>
-          <input id="city" type="text" class="form-control" placeholder="Zürich" required>
+          <input id="city" name="city" type="text" class="form-control" placeholder="Zürich" required>
           <div class="invalid-feedback">Bitte Ort angeben.</div>
         </div>
 
         <div class="col-md-6">
           <label for="email" class="form-label">E-Mail</label>
-          <input id="email" type="email" class="form-control" placeholder="du@beispiel.ch" required>
+          <input id="email" name="email" type="email" class="form-control" placeholder="du@beispiel.ch" required>
           <div class="invalid-feedback">Bitte gültige E-Mail eingeben.</div>
         </div>
 
         <div class="col-md-6">
           <label for="phone" class="form-label">Handy-Nummer</label>
-          <input id="phone" class="form-control only-digits"
-       type="text" inputmode="numeric" pattern="^\d{7,15}$"
-       minlength="7" maxlength="15" placeholder="0791234567" required>
-<div class="invalid-feedback">Nur Ziffern (7–15 Stellen) eingeben.</div>
-
-          <div class="invalid-feedback">Bitte gültige Telefonnummer (7–15 Ziffern, + / Leerzeichen / − möglich).</div>
+          <input id="phone" name="phone" class="form-control only-digits"
+                 type="text" inputmode="numeric" pattern="^\d{7,15}$"
+                 minlength="7" maxlength="15" placeholder="0791234567" required>
+          <div class="invalid-feedback">Nur Ziffern (7–15 Stellen) eingeben.</div>
         </div>
 
         <div class="col-md-6">
           <label for="contactPref" class="form-label">Bevorzugte Kontaktaufnahme</label>
-          <select id="contactPref" class="form-select" required>
+          <select id="contactPref" name="contactPref" class="form-select" required>
             <option value="" selected disabled>Bitte wählen …</option>
-            <option>E-Mail</option>
-            <option>Telefon</option>
-            <option>WhatsApp/Signal</option>
+            <option value="E-Mail">E-Mail</option>
+            <option value="Telefon">Telefon</option>
+            <option value="WhatsApp/Signal">WhatsApp/Signal</option>
           </select>
           <div class="invalid-feedback">Bitte auswählen.</div>
         </div>
 
         <div class="col-md-6">
           <label for="birth" class="form-label">Geburtsdatum</label>
-          <input id="birth" type="date" class="form-control" required>
+          <input id="birth" name="birth" type="date" class="form-control" required>
           <div class="invalid-feedback">Bitte Datum wählen.</div>
         </div>
       </div>
@@ -634,20 +633,21 @@
       <div class="row g-3">
         <div class="col-12">
           <label for="motivation" class="form-label">Motivationsschreiben</label>
-          <textarea id="motivation" class="form-control" rows="5" placeholder="Warum möchtest du Teil der Crew werden?" required></textarea>
+          <textarea id="motivation" name="motivation" class="form-control" rows="5"
+                    placeholder="Warum möchtest du Teil der Crew werden?" required></textarea>
           <div class="invalid-feedback">Bitte eine kurze Motivation schreiben.</div>
         </div>
 
         <div class="col-md-6">
           <label for="cv" class="form-label">Lebenslauf (PDF Upload)</label>
-          <input id="cv" type="file" class="form-control" accept="application/pdf" required>
+          <input id="cv" name="cv" type="file" class="form-control" accept="application/pdf" required>
           <div class="form-text">Nur PDF, max. 5 MB.</div>
           <div class="invalid-feedback">Bitte eine PDF-Datei (max. 5 MB) hochladen.</div>
         </div>
 
         <div class="col-md-6">
           <label for="portfolio" class="form-label">Link zu Portfolio (URL)</label>
-          <input id="portfolio" type="url" class="form-control" placeholder="https://dein-portfolio.ch" required>
+          <input id="portfolio" name="portfolio" type="url" class="form-control" placeholder="https://dein-portfolio.ch" required>
           <div class="invalid-feedback">Bitte gültige URL angeben (http(s):// …).</div>
         </div>
       </div>
@@ -660,7 +660,7 @@
             Externe Datenschutzbestimmungen
           </a>
           <div class="form-check mt-2">
-            <input id="accept" class="form-check-input" type="checkbox" value="1" required>
+            <input id="accept" name="accept" class="form-check-input" type="checkbox" value="1" required>
             <label class="form-check-label" for="accept">
               Ich habe die Datenschutzbestimmungen gelesen und akzeptiere sie.
             </label>
@@ -677,6 +677,3 @@
     </form>
   </div>
 </section>
-<div class="toast-container position-fixed bottom-0 end-0 p-3"></div>
-  </body>
-</html>

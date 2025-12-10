@@ -1,5 +1,5 @@
 // =====================
-// app.js – Vollständige Version
+// app.js – Vollständige Version (fixed)
 // =====================
 
 // --- Konstanten ---
@@ -446,7 +446,7 @@ document.addEventListener('DOMContentLoaded', () => {
     note.textContent      = `Berechnet in kt, Ausgabe in ${unit === 'kmh' ? 'km/h' : 'kt'}.`;
   }
 
-  // Einheit umschalten: Eingabewert konvertieren + neu rechnen
+  // Einheit umschalten
   document.querySelectorAll('input[name="xwUnit"]').forEach(radio => {
     radio.addEventListener('change', () => {
       const newUnit = getUnit();
@@ -470,7 +470,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }));
 });
 
-// ===== Formular – klassischer POST an Webhook.im neuen Tab =====
+// ===== Formular – klassischer POST an Webhook im neuen Tab =====
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('applyForm');
   if (!form) return;
@@ -524,14 +524,22 @@ document.addEventListener('DOMContentLoaded', () => {
     birth.min = '1900-01-01';
   }
 
-  // Submit: nur bei Ungültig blockieren – sonst normaler POST (target=_blank) direkt zum Webhook
+  // Erfolgshinweis & Reset nach POST (target=_blank)
   const successBanner = document.getElementById('applySuccess');
+
+  function clearApplyForm() {
+    form.reset();
+    form.classList.remove('was-validated');
+    document.getElementById('cv')?.setCustomValidity?.('');
+    document.getElementById('portfolio')?.setCustomValidity?.('');
+  }
+
   form.addEventListener('submit', (e) => {
     form.classList.add('was-validated');
 
     if (!form.checkValidity()) {
       e.preventDefault();
-      showToast('Bitte prüfen', 'Einige Eingaben sind noch ungültig.', 'danger');
+      showToast('Bitte prüfen', 'danger'); // 2-Arg Version unseres showToast
       const firstInvalid = form.querySelector(':invalid');
       if (firstInvalid) {
         firstInvalid.focus({ preventScroll: true });
@@ -540,10 +548,17 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Bei gültigen Eingaben NICHT verhindern:
-    // → Browser macht klassischen POST an deinen Webhook in NEUEM Tab (wegen target="_blank").
-    // Auf deiner Seite kannst du optional noch ein lokales Feedback zeigen:
+    // NICHT verhindern → Browser postet an Webhook in neuem Tab (target="_blank")
     successBanner?.classList.remove('d-none');
-    setTimeout(() => successBanner?.classList.add('d-none'), 5000);
-  });
+    setTimeout(() => successBanner?.classList.add('d-none'), 4000);
+
+    // Kurz danach Form lokal leeren
+    setTimeout(clearApplyForm, 200);
+
+    // Backup: beim Zurück-Fokus nochmal leeren (einmalig)
+    window.addEventListener('focus', function once() {
+      clearApplyForm();
+      window.removeEventListener('focus', once);
+    }, { once: true });
+  }, false);
 });
